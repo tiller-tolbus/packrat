@@ -1,9 +1,9 @@
 [package]
 name = "packrat"
 version = "0.1.0"
-edition = "2021"
+edition = "2025"
 description = "TUI application for interactively chunking text files"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Gary Lieberman <tiller.tolbus@gmail.com>"]
 
 [dependencies]
 # TUI and event handling
