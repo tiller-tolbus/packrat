@@ -207,3 +207,71 @@ fn test_viewer_state_persistence() -> Result<()> {
     
     Ok(())
 }
+
+#[test]
+fn test_viewer_selection() -> Result<()> {
+    let (_temp_dir, small_file_path, _, _) = setup_test_files()?;
+    
+    // Create a new viewer
+    let mut viewer = Viewer::new();
+    
+    // Open the small file (3 lines)
+    viewer.open_file(&small_file_path)?;
+    
+    // Initially no selection
+    assert_eq!(viewer.selection_range(), None, "Should have no selection initially");
+    assert_eq!(viewer.is_selection_mode(), false, "Selection mode should be off initially");
+    
+    // Turn on selection mode
+    viewer.toggle_selection_mode();
+    assert_eq!(viewer.is_selection_mode(), true, "Selection mode should be on after toggle");
+    
+    // Initial selection range should be cursor position only
+    assert_eq!(viewer.selection_range(), Some((0, 0)), "Initial selection should be cursor position only");
+    
+    // Move cursor to select more lines
+    viewer.cursor_down();
+    assert_eq!(viewer.cursor_position(), 1, "Cursor should be at position 1");
+    assert_eq!(viewer.selection_range(), Some((0, 1)), "Selection range should be from 0 to 1");
+    
+    // Move cursor down again
+    viewer.cursor_down();
+    assert_eq!(viewer.cursor_position(), 2, "Cursor should be at position 2");
+    assert_eq!(viewer.selection_range(), Some((0, 2)), "Selection range should be from 0 to 2");
+    
+    // Exit selection mode
+    viewer.toggle_selection_mode();
+    assert_eq!(viewer.is_selection_mode(), false, "Selection mode should be off after second toggle");
+    
+    // Selection range should be cleared when exiting selection mode
+    assert_eq!(viewer.selection_range(), None, "Selection range should be cleared after exiting selection mode");
+    
+    // Start new selection from middle
+    viewer.cursor_up();
+    assert_eq!(viewer.cursor_position(), 1, "Cursor should be at position 1");
+    
+    // Start a new selection
+    viewer.toggle_selection_mode();
+    assert_eq!(viewer.selection_range(), Some((1, 1)), "New selection should start at current cursor position");
+    
+    // Select upward
+    viewer.cursor_up();
+    assert_eq!(viewer.selection_range(), Some((0, 1)), "Selection range should be from 0 to 1, updated for upward selection");
+    
+    // Test clear selection
+    viewer.clear_selection();
+    assert_eq!(viewer.is_selection_mode(), false, "Selection mode should be off after clear");
+    assert_eq!(viewer.selection_range(), None, "Selection range should be cleared");
+    
+    // Test selection reset when opening a new file
+    viewer.toggle_selection_mode();
+    viewer.cursor_down();
+    assert_eq!(viewer.selection_range(), Some((0, 1)), "Selection should be active again");
+    
+    // Open the file again - should reset selection
+    viewer.open_file(&small_file_path)?;
+    assert_eq!(viewer.is_selection_mode(), false, "Selection mode should reset after opening a file");
+    assert_eq!(viewer.selection_range(), None, "Selection range should reset after opening a file");
+    
+    Ok(())
+}

@@ -66,7 +66,7 @@ fn render_viewer_mode(frame: &mut Frame, state: &AppState, viewer: &Viewer) {
     render_viewer_content(frame, chunks[0], viewer);
     
     // Render viewer status line
-    render_viewer_status(frame, chunks[1]);
+    render_viewer_status(frame, chunks[1], viewer);
 }
 
 
@@ -145,15 +145,56 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     let content_height = inner_area.height as usize;
     let visible_content = viewer.visible_content(content_height);
     
-    // Create text content for the paragraph
-    let content = visible_content
+    // Get selection range if any
+    let selection_range = viewer.selection_range();
+    
+    // Determine cursor position relative to the visible area
+    let cursor_position = viewer.cursor_position();
+    let scroll_position = viewer.scroll_position();
+    
+    // Create text content for the paragraph with selection highlighting
+    let content: Vec<Line> = visible_content
         .iter()
-        .map(|line| Line::from(line.as_str()))
-        .collect::<Vec<Line>>();
+        .enumerate()
+        .map(|(i, line)| {
+            let line_position = scroll_position + i;
+            let is_cursor_line = line_position == cursor_position;
+            
+            // Check if this line is in the selection range
+            let is_selected = selection_range
+                .map(|(start, end)| line_position >= start && line_position <= end)
+                .unwrap_or(false);
+            
+            // Define style based on selection status
+            let style = if is_selected {
+                Style::default().bg(Color::DarkGray).fg(Color::White)
+            } else {
+                Style::default().fg(Color::Reset)
+            };
+            
+            // Create the line with proper styling and cursor if needed
+            if is_cursor_line {
+                let cursor_style = Style::default().bg(Color::Blue).fg(Color::White);
+                
+                // If in selection mode, use a different cursor style
+                let cursor_symbol = if viewer.is_selection_mode() { "▶" } else { ">" };
+                
+                Line::from(vec![
+                    Span::styled(format!("{} ", cursor_symbol), cursor_style),
+                    Span::styled(line.as_str(), style)
+                ])
+            } else {
+                Line::from(vec![
+                    Span::raw("  "), // Space where cursor would be
+                    Span::styled(line.as_str(), style)
+                ])
+            }
+        })
+        .collect();
     
     // Create and render the paragraph widget
     let content_widget = Paragraph::new(content)
-        .style(Style::default().fg(Color::Reset))  // Use terminal's default foreground color instead of white
+        .style(Style::default().fg(Color::Reset))
         .wrap(Wrap { trim: false });
     
     frame.render_widget(content_widget, inner_area);
@@ -161,15 +202,28 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
 
 /// Render the explorer status line - more compact to fit in small terminals
 fn render_explorer_status(frame: &mut Frame, area: Rect) {
-    let status = Paragraph::new(" q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help")
+    let status = Paragraph::new(" ?:Help | q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back")
         .style(Style::default().fg(Color::Reset));
     
     frame.render_widget(status, area);
 }
 
 /// Render the viewer status line - more compact to fit in small terminals
-fn render_viewer_status(frame: &mut Frame, area: Rect) {
-    let status = Paragraph::new(" q/Esc:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help")
+fn render_viewer_status(frame: &mut Frame, area: Rect, viewer: &Viewer) {
+    let selection_info = if viewer.is_selection_mode() {
+        "SELECTION MODE | "
+    } else {
+        if viewer.selection_range().is_some() {
+            "TEXT SELECTED | "
+        } else {
+            ""
+        }
+    };
+    
+    let status_text = format!(" ?:Help | Space:Toggle Selection | {status} q/Esc:Back | ↑↓/kj:Move | PgUp/Dn:Page | Home/End:Jump", 
+        status = selection_info);
+    
+    let status = Paragraph::new(status_text)
         .style(Style::default().fg(Color::Reset));
     
     frame.render_widget(status, area);
@@ -229,9 +283,15 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
                 Line::from(vec![
                     Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  ↑/k, ↓/j        Scroll up/down"),
+                Line::from("  ↑/k, ↓/j        Move cursor up/down"),
                 Line::from("  PgUp, PgDn      Page up/down"),
                 Line::from("  Home, End       Jump to top/bottom"),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Selection", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  Space           Toggle selection mode"),
+                Line::from("  ↑/k, ↓/j        Select text in selection mode"),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
@@ -360,7 +420,7 @@ impl UiSerializer {
         // Status
         writeln!(&mut output, "Status Line:").unwrap();
         writeln!(&mut output, "------------").unwrap();
-        writeln!(&mut output, "q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help").unwrap();
+        writeln!(&mut output, "?:Help | q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back").unwrap();
         writeln!(&mut output, "").unwrap();
         
         // Debug info
@@ -387,19 +447,46 @@ impl UiSerializer {
         writeln!(&mut output, "Viewing File: {:?}", viewer.file_path()).unwrap();
         writeln!(&mut output, "").unwrap();
         
+        // Selection info
+        writeln!(&mut output, "Selection Status:").unwrap();
+        writeln!(&mut output, "================").unwrap();
+        writeln!(&mut output, "Selection Mode: {}", if viewer.is_selection_mode() { "ACTIVE" } else { "INACTIVE" }).unwrap();
+        
+        if let Some((start, end)) = viewer.selection_range() {
+            writeln!(&mut output, "Selection Range: Lines {} to {}", start + 1, end + 1).unwrap();
+            writeln!(&mut output, "Selected Line Count: {}", end - start + 1).unwrap();
+        } else {
+            writeln!(&mut output, "Selection Range: None").unwrap();
+        }
+        writeln!(&mut output, "Cursor Position: Line {}", viewer.cursor_position() + 1).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
         // Content
         writeln!(&mut output, "File Content Preview:").unwrap();
         writeln!(&mut output, "====================").unwrap();
         
         // Show current scroll position and nearby content (10 lines)
         let pos = viewer.scroll_position();
+        let cursor_pos = viewer.cursor_position();
         let content = viewer.content();
+        let selection_range = viewer.selection_range();
         
-        let start = if pos > 5 { pos - 5 } else { 0 };
+        let start = if cursor_pos > 5 { cursor_pos - 5 } else { 0 };
         let end = (start + 15).min(content.len());
         
         for i in start..end {
-            let marker = if i == pos { " -> " } else { "    " };
+            let is_selected = selection_range
+                .map(|(start, end)| i >= start && i <= end)
+                .unwrap_or(false);
+                
+            let marker = if i == cursor_pos { 
+                if viewer.is_selection_mode() { " => " } else { " -> " } 
+            } else if is_selected {
+                " ** "
+            } else { 
+                "    " 
+            };
+            
             let line_num = format!("{:4}", i + 1);
             let line_content = content.get(i).map_or("", |s| s.as_str());
             writeln!(&mut output, "{}{}: {}", marker, line_num, line_content).unwrap();
@@ -409,7 +496,19 @@ impl UiSerializer {
         // Status
         writeln!(&mut output, "Status Line:").unwrap();
         writeln!(&mut output, "------------").unwrap();
-        writeln!(&mut output, "q/Esc:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help").unwrap();
+        
+        let selection_info = if viewer.is_selection_mode() {
+            "SELECTION MODE | "
+        } else {
+            if viewer.selection_range().is_some() {
+                "TEXT SELECTED | "
+            } else {
+                ""
+            }
+        };
+        
+        writeln!(&mut output, "?:Help | Space:Toggle Selection | {} q/Esc:Back | ↑↓/kj:Move | PgUp/Dn:Page | Home/End:Jump", 
+            selection_info).unwrap();
         writeln!(&mut output, "").unwrap();
         
         // Debug info

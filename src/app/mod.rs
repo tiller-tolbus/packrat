@@ -251,11 +251,23 @@ impl App {
                 self.state.mode = AppMode::Explorer;
             },
             
-            // Basic scrolling
-            KeyCode::Up | KeyCode::Char('k') => self.viewer.scroll_up(),
-            KeyCode::Down | KeyCode::Char('j') => self.viewer.scroll_down(),
+            // Toggle selection mode with Space
+            KeyCode::Char(' ') => {
+                self.viewer.toggle_selection_mode();
+                self.state.set_debug_message(
+                    format!(
+                        "Selection mode: {}", 
+                        if self.viewer.is_selection_mode() { "ON" } else { "OFF" }
+                    ), 
+                    2
+                );
+            },
             
-            // Page scrolling
+            // Line-based cursor movement
+            KeyCode::Up | KeyCode::Char('k') => self.viewer.cursor_up(),
+            KeyCode::Down | KeyCode::Char('j') => self.viewer.cursor_down(),
+            
+            // Page scrolling - keeps cursor in view
             KeyCode::PageUp => {
                 let page_size = self.terminal.size().unwrap_or_default().height as usize;
                 let effective_page_size = if page_size > 10 { page_size - 10 } else { 1 };

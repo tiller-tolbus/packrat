@@ -37,32 +37,52 @@
 - [x] Update explorer mode to handle ESC key (should exit application)
 - [x] Fix text color in light mode for text viewer
 - [x] Update status line and debug text colors for better visibility in light mode
+- [x] Reorder status line to prioritize help option for better visibility in small windows
 
-## Phase 3: Text Selection & Highlighting
-- [ ] Implement text selection with mouse
-- [ ] Implement mouse scrolling in text viewer
-- [ ] Implement text selection with keyboard
-- [ ] Add visual highlighting for selected text
-- [ ] Handle multi-line selections
+## Phase 3: Line-Based Text Selection & Highlighting (Completed)
+- [x] Implement line-based cursor movement
+- [x] Add selection mode toggle with Space key
+- [x] Track selected lines when cursor moves in selection mode
+- [x] Add visual highlighting for selected lines
+- [x] Allow exiting selection mode with Space key
+- [x] Ensure selection persists when exiting selection mode
+- [x] Reset selection when appropriate (new file)
+- [x] Add tests for line selection functionality
+
+## Phase 3.5: Integrated Text Editing (Optional)
+- [ ] Implement 'E' key to enter edit mode for selected lines
+- [ ] Integrate textedit-tui crate for editing capability
+- [ ] Allow editing of selected text in editor view
+- [ ] Save edits and return to viewer mode
+- [ ] Update selection to reflect edited content
+- [ ] Add appropriate error handling for empty selections
+- [ ] Add tests for text editing functionality
 
 ## Phase 4: Chunk Saving & Tracking
-- [ ] Implement saving selected text as chunk
+- [ ] Implement saving selected lines as chunk with 'S' key
 - [ ] Highlight saved chunks in the viewer
-- [ ] Update file explorer to show chunking progress
+- [ ] Update file explorer to show chunking progress 
 - [ ] Create chunks directory if it doesn't exist
+- [ ] Update status indicators after chunking
+- [ ] Add tests for chunk saving functionality
 
 ## Phase 5: Filesystem Monitoring
-- [ ] Implement file system watching
-- [ ] Update UI when files change
+- [ ] Implement file system watching with Notify crate
+- [ ] Update UI when files change externally
 - [ ] Track chunk files and update highlights accordingly
+- [ ] Add tests for filesystem monitoring
 
 ## Phase 6: Undo Feature
-- [ ] Implement undo for last chunk
-- [ ] Optional: Implement redo functionality
+- [ ] Implement undo for last chunk with 'R' key
+- [ ] Maintain an undo stack for tracking chunks
+- [ ] Optionally implement redo with Shift+R
+- [ ] Update UI highlights when undoing/redoing
+- [ ] Add tests for undo/redo functionality
 
-## Phase 7: Polish & Stretch Goals
-- [ ] Add configuration file support
+## Phase 7: Polish & Further Stretch Goals
+- [ ] Add configuration file support (TOML/YAML)
 - [ ] Implement custom keybindings
 - [ ] Add custom color themes
-- [ ] Improve error handling
-- [ ] Add performance optimizations
+- [ ] Improve error handling for permission issues
+- [ ] Add performance optimizations for large files
+- [ ] Consider enhancements to editor functionality
