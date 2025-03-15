@@ -14,6 +14,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use self::events::EventHandler;
 use self::state::{AppMode, AppState};
 use crate::config::Config;
+use packrat::editor::Editor;
 use crate::explorer::Explorer;
 use crate::ui::{render, UiSerializer};
 use crate::viewer::Viewer;
@@ -30,6 +31,8 @@ pub struct App {
     explorer: Explorer,
     /// Text viewer
     viewer: Viewer,
+    /// Text editor
+    editor: Editor,
     /// Application configuration
     config: Config,
 }
@@ -49,6 +52,7 @@ impl App {
         let events = EventHandler::new(Duration::from_millis(100));
         let explorer = Explorer::new(".")?; // Start in current directory
         let viewer = Viewer::new();
+        let editor = Editor::new();
         let config = Config::default();
         
         // Create debug directory if enabled
@@ -63,6 +67,7 @@ impl App {
             events,
             explorer,
             viewer,
+            editor,
             config,
         })
     }
@@ -81,7 +86,7 @@ impl App {
             
             // Draw the UI
             self.terminal.draw(|frame| {
-                render(frame, &self.state, &self.explorer, &self.viewer);
+                render(frame, &self.state, &self.explorer, &self.viewer, &self.editor);
             })?;
 
             // Handle events
@@ -118,6 +123,7 @@ impl App {
         match self.state.mode {
             AppMode::Explorer => self.handle_explorer_key_event(event),
             AppMode::Viewer => self.handle_viewer_key_event(event),
+            AppMode::Editor => self.handle_editor_key_event(event),
         }
     }
     
@@ -143,6 +149,9 @@ impl App {
             },
             AppMode::Viewer => {
                 UiSerializer::capture_viewer(&self.state, &self.viewer)
+            },
+            AppMode::Editor => {
+                UiSerializer::capture_editor(&self.state)
             },
         };
         
@@ -262,6 +271,25 @@ impl App {
                 self.state.set_debug_message(message.to_string(), 2);
             },
             
+            // Enter editor mode with 'E' key
+            KeyCode::Char('e') => {
+                // Only enter editor mode if there is a selection
+                if let Some((start, end)) = self.viewer.selection_range() {
+                    let content = self.viewer.content();
+                    // Extract the selected lines
+                    let selected_lines = content[start..=end].to_vec();
+                    
+                    // Set the editor content with the selected lines
+                    self.editor.set_content(selected_lines);
+                    
+                    // Switch to editor mode
+                    self.state.mode = AppMode::Editor;
+                    self.state.set_debug_message("Editing selected text".to_string(), 2);
+                } else {
+                    self.state.set_debug_message("No text selected for editing".to_string(), 2);
+                }
+            },
+            
             // Line-based cursor movement
             KeyCode::Up | KeyCode::Char('k') => self.viewer.cursor_up(),
             KeyCode::Down | KeyCode::Char('j') => self.viewer.cursor_down(),
@@ -283,6 +311,51 @@ impl App {
             KeyCode::End => self.viewer.scroll_to_bottom(),
             
             _ => {}
+        }
+    }
+    
+    /// Handle key events in editor mode
+    fn handle_editor_key_event(&mut self, event: event::KeyEvent) {
+        use crossterm::event::KeyCode;
+        
+        // Special key handling
+        match event.code {
+            // Exit editor and return to viewer
+            KeyCode::Esc => {
+                // Warn user if they have unsaved changes
+                if self.editor.is_modified() {
+                    self.state.set_debug_message("Exiting editor without saving changes".to_string(), 3);
+                }
+                self.state.mode = AppMode::Viewer;
+            },
+            
+            // Save changes and return to viewer
+            KeyCode::Char('s') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Get the edited content
+                let _edited_content = self.editor.content();
+                
+                // TODO: Update viewer with the edited content (this will be implemented in Phase 4)
+                
+                // Switch back to viewer mode
+                self.state.mode = AppMode::Viewer;
+                self.state.set_debug_message("Changes saved".to_string(), 2);
+            },
+            
+            // Handle the key event with the text editor
+            _ => {
+                // Let the editor handle the key event
+                let handled = self.editor.handle_key_event(event);
+                if !handled {
+                    // If the editor didn't handle it, check for our custom keys
+                    match event.code {
+                        // Toggle help panel
+                        KeyCode::Char('?') => {
+                            self.state.show_help = !self.state.show_help;
+                        },
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 }

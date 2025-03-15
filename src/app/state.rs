@@ -7,6 +7,8 @@ pub enum AppMode {
     Explorer,
     /// Text viewer mode
     Viewer,
+    /// Text editor mode
+    Editor,
 }
 
 impl Default for AppMode {

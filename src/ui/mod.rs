@@ -6,15 +6,17 @@ use ratatui::Frame;
 use std::fmt::Write;
 
 use crate::app::state::{AppMode, AppState};
+use packrat::editor::Editor;
 use crate::explorer::Explorer;
 use crate::viewer::Viewer;
 
 /// Render the UI
-pub fn render(frame: &mut Frame, state: &AppState, explorer: &Explorer, viewer: &Viewer) {
+pub fn render(frame: &mut Frame, state: &AppState, explorer: &Explorer, viewer: &Viewer, editor: &Editor) {
     // Render the main UI based on the current mode
     match state.mode {
         AppMode::Explorer => render_explorer_mode(frame, state, explorer),
         AppMode::Viewer => render_viewer_mode(frame, state, viewer),
+        AppMode::Editor => render_editor_mode(frame, state, editor),
     }
     
     // Render debug message overlay if one exists
@@ -239,7 +241,8 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
     let width = 60.min(area.width.saturating_sub(4));
     let height = match mode {
         AppMode::Explorer => 15.min(area.height.saturating_sub(4)),
-        AppMode::Viewer => 13.min(area.height.saturating_sub(4)),
+        AppMode::Viewer => 15.min(area.height.saturating_sub(4)),
+        AppMode::Editor => 13.min(area.height.saturating_sub(4)),
     };
     
     let horizontal_padding = (area.width - width) / 2;
@@ -298,7 +301,33 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
                 Line::from(vec![
                     Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
+                Line::from("  e               Edit selected text"),
                 Line::from("  q, Esc          Return to file explorer"),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  ?               Toggle this help panel"),
+                Line::from("  Press any key to close help")
+            ]
+        },
+        AppMode::Editor => {
+            vec![
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Navigation & Editing", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  Arrow keys      Move cursor"),
+                Line::from("  PgUp, PgDn      Page up/down"),
+                Line::from("  Home, End       Start/end of line"),
+                Line::from("  Typing keys     Insert text at cursor"),
+                Line::from("  Backspace, Del  Delete text"),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  Ctrl+S          Save changes and return to viewer"),
+                Line::from("  Esc             Cancel editing and return to viewer"),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
@@ -381,6 +410,87 @@ pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
         .style(Style::default().bg(Color::Black));
     
     frame.render_widget(status_widget, overlay_area);
+}
+
+/// Render the editor mode UI
+fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &Editor) {
+    if state.show_help {
+        render_help_panel(frame, AppMode::Editor);
+        return;
+    }
+
+    // Create the layout
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(0),     // Editor content
+            Constraint::Length(1),  // Status line
+        ])
+        .split(frame.size());
+    
+    // Render editor content (with title in block)
+    render_editor_content(frame, chunks[0], editor);
+    
+    // Render editor status line
+    render_editor_status(frame, chunks[1], editor);
+}
+
+/// Render the editor content
+fn render_editor_content(frame: &mut Frame, area: Rect, editor: &Editor) {
+    // Create a centered title
+    let title_text = "✎ Text Editor ✎";
+    let title = create_centered_title(&title_text, area.width);
+    
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::LightGreen));
+    
+    // Get the inner area for content
+    let inner_area = block.inner(area);
+    frame.render_widget(block, area);
+    
+    // Get editor content
+    let content = editor.content();
+    
+    // Create a paragraph from the content
+    let text_content: Vec<Line> = content.iter()
+        .map(|line| Line::from(line.clone()))
+        .collect();
+    
+    let text_widget = Paragraph::new(text_content)
+        .style(Style::default())
+        .wrap(Wrap { trim: false });
+    
+    // Render the text
+    frame.render_widget(text_widget, inner_area);
+    
+    // Display cursor at a simulated position (first position for now)
+    // A more accurate implementation would extract the actual cursor position from textarea
+    let cursor_x = 0;
+    let cursor_y = 0;
+    
+    // Show cursor at the top-left of editing area
+    frame.set_cursor(
+        inner_area.x + cursor_x,
+        inner_area.y + cursor_y
+    );
+}
+
+/// Render the editor status line
+fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
+    let modified_text = if editor.is_modified() {
+        "[MODIFIED] | "
+    } else {
+        ""
+    };
+    
+    let status_text = format!(" ?:Help | {}Ctrl+S:Save | Esc:Cancel | Arrow keys:Navigate | Type to edit", modified_text);
+    
+    let status = Paragraph::new(status_text)
+        .style(Style::default().fg(Color::Reset));
+    
+    frame.render_widget(status, area);
 }
 
 /// UI state serialization for debugging
@@ -504,6 +614,36 @@ impl UiSerializer {
         
         writeln!(&mut output, "?:Help | Space:Toggle Selection | {} q/Esc:Back | ↑↓/kj:Move | PgUp/Dn:Page | Home/End:Jump", 
             selection_info).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Debug info
+        writeln!(&mut output, "Terminal Info:").unwrap();
+        writeln!(&mut output, "-------------").unwrap();
+        writeln!(&mut output, "Debug Mode: Active").unwrap();
+        writeln!(&mut output, "Shortcut to dump UI state: Ctrl+D").unwrap();
+        
+        output
+    }
+    
+    /// Capture the editor mode UI state as a formatted string
+    pub fn capture_editor(state: &AppState) -> String {
+        let mut output = String::new();
+        
+        // Add header
+        writeln!(&mut output, "=== PACKRAT UI STATE DUMP ===").unwrap();
+        writeln!(&mut output, "Mode: Editor").unwrap();
+        writeln!(&mut output, "Time: {:?}", std::time::SystemTime::now()).unwrap();
+        writeln!(&mut output, "Show Help: {}", state.show_help).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Status info
+        writeln!(&mut output, "Editing selected text - content not shown in debug view").unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Status line
+        writeln!(&mut output, "Status Line:").unwrap();
+        writeln!(&mut output, "------------").unwrap();
+        writeln!(&mut output, "?:Help | Ctrl+S:Save | Esc:Cancel | Arrow keys:Navigate | Type to edit").unwrap();
         writeln!(&mut output, "").unwrap();
         
         // Debug info

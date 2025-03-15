@@ -50,12 +50,12 @@
 - [x] Add tests for line selection functionality
 
 ## Phase 3.5: Integrated Text Editing (Optional)
-- [ ] Implement 'E' key to enter edit mode for selected lines
-- [ ] Integrate textedit-tui crate for editing capability
-- [ ] Allow editing of selected text in editor view
-- [ ] Save edits and return to viewer mode
-- [ ] Update selection to reflect edited content
-- [ ] Add appropriate error handling for empty selections
+- [x] Implement 'E' key to enter edit mode for selected lines
+- [x] Integrate tui-textarea crate for editing capability
+- [x] Allow editing of selected text in editor view
+- [x] Save edits and return to viewer mode
+- [ ] Update selection to reflect edited content (will be implemented in Phase 4)
+- [x] Add appropriate error handling for empty selections
 - [ ] Add tests for text editing functionality
 
 ## Phase 4: Chunk Saving & Tracking
@@ -82,7 +82,7 @@
 ## Phase 7: Polish & Further Stretch Goals
 - [ ] Add configuration file support (TOML/YAML)
 - [ ] Implement custom keybindings
-- [ ] Add custom color themes
+- [ ] Add Alacritty theme support
 - [ ] Improve error handling for permission issues
 - [ ] Add performance optimizations for large files
 - [ ] Consider enhancements to editor functionality

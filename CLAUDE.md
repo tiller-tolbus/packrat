@@ -104,11 +104,11 @@ Enhance the text viewer to allow selecting contiguous lines of text by toggling 
 ## Phase 3.5: Integrated Text Editing (Optional)
 
 **Description**  
-Add an intermediate editing step for selected lines using a third “editor view” powered by the textedit-tui. If a user has a selection of text, pressing **E** takes them into this editor view, where they can modify the content before finalizing it as a chunk.
+Add an intermediate editing step for selected lines using a third “editor view” powered by the tui-textarea. If a user has a selection of text, pressing **E** takes them into this editor view, where they can modify the content before finalizing it as a chunk.
 
 **Technical Implementation Details**  
 - Detect when the user presses **E** and there is an active selection of lines.
-- Transition to a new TUI “editor view,” which uses the textedit-tui crate.
+- Transition to a new TUI “editor view,” which uses the tui-textarea crate.
 - Allow the user to edit the selected text in a more fine-grained way.
 - After editing, the user can save changes and return to the main viewer, with the updated text ready to be chunked.
 

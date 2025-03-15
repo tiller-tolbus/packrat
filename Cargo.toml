@@ -8,7 +8,7 @@ authors = ["Gary Lieberman <tiller.tolbus@gmail.com>"]
 [dependencies]
 # TUI and event handling
 ratatui = "0.26.0"
-crossterm = "0.27.0"
+crossterm = "0.28.0"
 
 # Filesystem operations
 walkdir = "2.4.0"
@@ -16,6 +16,9 @@ notify = "6.1.1"
 
 # Error handling
 anyhow = "1.0.81"
+
+# Text editing
+tui-textarea = { version = "0.7.0", features = ["crossterm"] }
 
 # Future dependencies
 # serde = { version = "1.0", features = ["derive"] }
