@@ -147,7 +147,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
 
 /// Render the explorer status line
 fn render_explorer_status(frame: &mut Frame, area: Rect) {
-    let status = Paragraph::new(" q: Quit | ↑/k,↓/j: Navigate | PgUp/PgDn: Page | Home/End: Jump | Enter/l: Open | h: Back")
+    let status = Paragraph::new(" q: Quit | ↑/k,↓/j: Navigate | PgUp/PgDn: Page | Home/End: Jump | Enter/l/→: Open | h/←: Back")
         .style(Style::default().fg(Color::Gray));
     
     frame.render_widget(status, area);

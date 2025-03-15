@@ -186,3 +186,31 @@ fn test_explorer_entry_sorting() -> Result<()> {
     
     Ok(())
 }
+
+#[test]
+fn test_explorer_file_selection() -> Result<()> {
+    let (_temp_dir, root_path) = setup_test_directory()?;
+    
+    // Create a new explorer
+    let mut explorer = Explorer::new(&root_path)?;
+    
+    // Find a file entry (file1.txt)
+    let file_index = explorer.entries().iter().position(|e| e.name == "file1.txt")
+        .expect("Should find file1.txt");
+    
+    // Navigate to the file
+    for _ in 0..file_index {
+        explorer.select_next();
+    }
+    
+    // Check that we've selected a file, not a directory
+    let selected = &explorer.entries()[explorer.selected_index()];
+    assert!(!selected.is_dir, "Selected entry should be a file");
+    assert_eq!(selected.name, "file1.txt", "Selected entry should be file1.txt");
+    
+    // Note: We can't test the actual key events in this unit test since they rely on
+    // the App struct which manages the mode switching. This test verifies file selection
+    // works as expected, but key bindings would be tested in an integration test.
+    
+    Ok(())
+}

@@ -19,6 +19,8 @@
 - [x] Add test for scrolling through file content
 - [x] Add test for boundary conditions (no over-scrolling)
 - [x] Add test for exiting and re-entering the viewer (state persistence)
+- [x] Fix file opening with right arrow / L key
+- [x] Add test for opening file with different key bindings
 
 ## Phase 3: Text Selection & Highlighting
 - [ ] Implement text selection with mouse

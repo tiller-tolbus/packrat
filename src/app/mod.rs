@@ -119,7 +119,7 @@ impl App {
             KeyCode::End => self.explorer.select_last(),
             
             // Directory/file navigation
-            KeyCode::Enter | KeyCode::Char('l') => {
+            KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
                 if self.explorer.entries().is_empty() {
                     return;
                 }
@@ -141,7 +141,7 @@ impl App {
                     }
                 }
             },
-            KeyCode::Char('h') => {
+            KeyCode::Char('h') | KeyCode::Left => {
                 // Go back to parent directory
                 if let Err(e) = self.explorer.go_to_parent() {
                     eprintln!("Error: {}", e);
