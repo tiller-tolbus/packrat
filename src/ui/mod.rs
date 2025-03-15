@@ -27,20 +27,16 @@ fn render_explorer_mode(frame: &mut Frame, state: &AppState, explorer: &Explorer
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Title
             Constraint::Min(0),     // Explorer
             Constraint::Length(1),  // Status line
         ])
         .split(frame.size());
     
-    // Render title
-    render_title(frame, chunks[0], "Packrat - Text Chunking Tool");
-    
-    // Render file explorer
-    render_explorer_content(frame, chunks[1], explorer);
+    // Render file explorer (with the application title in its block)
+    render_explorer_content(frame, chunks[0], explorer);
     
     // Render explorer status line
-    render_explorer_status(frame, chunks[2]);
+    render_explorer_status(frame, chunks[1]);
 }
 
 /// Render the viewer mode UI
@@ -54,41 +50,25 @@ fn render_viewer_mode(frame: &mut Frame, state: &AppState, viewer: &Viewer) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Title
             Constraint::Min(0),     // Viewer content
             Constraint::Length(1),  // Status line
         ])
         .split(frame.size());
     
-    // Get file name for the title
-    let file_name = viewer.file_path()
-        .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string())
-        .unwrap_or_else(|| "Unknown File".to_string());
-    
-    // Render title
-    render_title(frame, chunks[0], &format!("Viewing: {}", file_name));
-    
-    // Render text viewer content
-    render_viewer_content(frame, chunks[1], viewer);
+    // Render text viewer content (with file name in its block)
+    render_viewer_content(frame, chunks[0], viewer);
     
     // Render viewer status line
-    render_viewer_status(frame, chunks[2]);
+    render_viewer_status(frame, chunks[1]);
 }
 
-/// Render the application title
-fn render_title(frame: &mut Frame, area: Rect, title: &str) {
-    let title_widget = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan))
-        .block(Block::default().borders(Borders::ALL));
-    
-    frame.render_widget(title_widget, area);
-}
 
 /// Render the file explorer content
 fn render_explorer_content(frame: &mut Frame, area: Rect, explorer: &Explorer) {
     let block = Block::default()
-        .title("File Explorer")
-        .borders(Borders::ALL);
+        .title("Packrat - Text Chunking Tool")
+        .borders(Borders::ALL)
+        .title_style(Style::default().add_modifier(Modifier::BOLD));
     
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
@@ -135,9 +115,15 @@ fn render_explorer_content(frame: &mut Frame, area: Rect, explorer: &Explorer) {
 
 /// Render the text viewer content
 fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
+    // Get file name for the title
+    let file_name = viewer.file_path()
+        .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string())
+        .unwrap_or_else(|| "Unknown File".to_string());
+        
     let block = Block::default()
-        .title("Text Viewer")
-        .borders(Borders::ALL);
+        .title(format!("Viewing: {}", file_name))
+        .borders(Borders::ALL)
+        .title_style(Style::default().add_modifier(Modifier::BOLD));
     
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
