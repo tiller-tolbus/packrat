@@ -82,9 +82,28 @@ impl App {
             // Quit application
             KeyCode::Char('q') => self.state.should_quit = true,
             
-            // Handle navigation in explorer
+            // Basic navigation in explorer
             KeyCode::Up | KeyCode::Char('k') => self.explorer.select_previous(),
             KeyCode::Down | KeyCode::Char('j') => self.explorer.select_next(),
+            
+            // Page navigation
+            KeyCode::PageUp => {
+                // Estimate page size as terminal height minus headers/footers (approx 10 lines)
+                let page_size = self.terminal.size().unwrap_or_default().height as usize;
+                let effective_page_size = if page_size > 10 { page_size - 10 } else { 1 };
+                self.explorer.select_page_up(effective_page_size);
+            },
+            KeyCode::PageDown => {
+                let page_size = self.terminal.size().unwrap_or_default().height as usize;
+                let effective_page_size = if page_size > 10 { page_size - 10 } else { 1 };
+                self.explorer.select_page_down(effective_page_size);
+            },
+            
+            // Home/End navigation
+            KeyCode::Home => self.explorer.select_first(),
+            KeyCode::End => self.explorer.select_last(),
+            
+            // Directory navigation
             KeyCode::Enter | KeyCode::Char('l') => {
                 // Open directory or file
                 if let Err(e) = self.explorer.open_selected() {

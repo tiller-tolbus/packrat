@@ -8,7 +8,7 @@ use crate::app::state::AppState;
 use crate::explorer::Explorer;
 
 /// Render the UI
-pub fn render(frame: &mut Frame, state: &AppState, explorer: &Explorer) {
+pub fn render(frame: &mut Frame, _state: &AppState, explorer: &Explorer) {
     // Create the layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -85,7 +85,7 @@ fn render_explorer(frame: &mut Frame, area: Rect, explorer: &Explorer) {
 
 /// Render the status line
 fn render_status(frame: &mut Frame, area: Rect) {
-    let status = Paragraph::new(" q: Quit | ↑/k,↓/j: Navigate | Enter/l: Open | h: Back")
+    let status = Paragraph::new(" q: Quit | ↑/k,↓/j: Navigate | PgUp/PgDn: Page | Home/End: Jump | Enter/l: Open | h: Back")
         .style(Style::default().fg(Color::Gray));
     
     frame.render_widget(status, area);

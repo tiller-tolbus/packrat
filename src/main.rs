@@ -1,6 +1,6 @@
 mod app;
 mod ui;
-mod explorer;
+pub mod explorer;
 mod viewer;
 mod config;
 mod utils;

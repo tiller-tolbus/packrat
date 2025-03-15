@@ -118,6 +118,34 @@ impl Explorer {
         }
     }
     
+    /// Select the entry one page up (or to the top if less than a page)
+    pub fn select_page_up(&mut self, page_size: usize) {
+        if !self.entries.is_empty() {
+            self.selected_index = self.selected_index.saturating_sub(page_size);
+        }
+    }
+    
+    /// Select the entry one page down (or to the bottom if less than a page)
+    pub fn select_page_down(&mut self, page_size: usize) {
+        if !self.entries.is_empty() {
+            self.selected_index = (self.selected_index + page_size).min(self.entries.len() - 1);
+        }
+    }
+    
+    /// Select the first entry
+    pub fn select_first(&mut self) {
+        if !self.entries.is_empty() {
+            self.selected_index = 0;
+        }
+    }
+    
+    /// Select the last entry
+    pub fn select_last(&mut self) {
+        if !self.entries.is_empty() {
+            self.selected_index = self.entries.len() - 1;
+        }
+    }
+    
     /// Open the selected entry (directory or file)
     pub fn open_selected(&mut self) -> Result<()> {
         if self.entries.is_empty() {
