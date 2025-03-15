@@ -1,0 +1,45 @@
+# Packrat Development Todo List
+
+## Phase 1: File Explorer UI (Current Phase)
+- [x] Set up project structure
+- [x] Implement basic file explorer with navigation
+- [x] Implement chroot functionality to prevent going above root
+- [ ] Add page up/page down navigation
+- [ ] Add home/end navigation
+- [ ] Fix any bugs in file explorer navigation
+- [ ] Add tests for Phase 1 functionality
+
+## Phase 2: Text Viewer & Scrolling
+- [ ] Implement basic text viewer that opens when a file is selected
+- [ ] Add vertical scrolling with keyboard controls
+- [ ] Add proper file content display
+- [ ] Handle large files efficiently
+- [ ] Exit back to file explorer
+
+## Phase 3: Text Selection & Highlighting
+- [ ] Implement text selection with mouse
+- [ ] Implement text selection with keyboard
+- [ ] Add visual highlighting for selected text
+- [ ] Handle multi-line selections
+
+## Phase 4: Chunk Saving & Tracking
+- [ ] Implement saving selected text as chunk
+- [ ] Highlight saved chunks in the viewer
+- [ ] Update file explorer to show chunking progress
+- [ ] Create chunks directory if it doesn't exist
+
+## Phase 5: Filesystem Monitoring
+- [ ] Implement file system watching
+- [ ] Update UI when files change
+- [ ] Track chunk files and update highlights accordingly
+
+## Phase 6: Undo Feature
+- [ ] Implement undo for last chunk
+- [ ] Optional: Implement redo functionality
+
+## Phase 7: Polish & Stretch Goals
+- [ ] Add configuration file support
+- [ ] Implement custom keybindings
+- [ ] Add custom color themes
+- [ ] Improve error handling
+- [ ] Add performance optimizations

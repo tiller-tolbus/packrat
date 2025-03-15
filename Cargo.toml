@@ -1,0 +1,22 @@
+[package]
+name = "packrat"
+version = "0.1.0"
+edition = "2021"
+description = "TUI application for interactively chunking text files"
+authors = ["Your Name <your.email@example.com>"]
+
+[dependencies]
+# TUI and event handling
+ratatui = "0.26.0"
+crossterm = "0.27.0"
+
+# Filesystem operations
+walkdir = "2.4.0"
+notify = "6.1.1"
+
+# Error handling
+anyhow = "1.0.81"
+
+# Future dependencies
+# serde = { version = "1.0", features = ["derive"] }
+# toml = "0.8.10"
