@@ -28,6 +28,7 @@
 - [x] Ensure status line is compact and fits in small terminals
 - [x] Clean up unused imports and warnings in cargo
 - [x] Optimize UI layout by moving titles into content blocks
+- [x] Center titles in block headers for improved aesthetics
 
 ## Phase 3: Text Selection & Highlighting
 - [ ] Implement text selection with mouse

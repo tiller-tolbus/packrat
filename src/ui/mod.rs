@@ -65,10 +65,13 @@ fn render_viewer_mode(frame: &mut Frame, state: &AppState, viewer: &Viewer) {
 
 /// Render the file explorer content
 fn render_explorer_content(frame: &mut Frame, area: Rect, explorer: &Explorer) {
+    // Create a centered title
+    let title_text = "◆ Packrat ◆";
+    let title = create_centered_title(&title_text, area.width);
+    
     let block = Block::default()
-        .title("Packrat - Text Chunking Tool")
-        .borders(Borders::ALL)
-        .title_style(Style::default().add_modifier(Modifier::BOLD));
+        .title(title)
+        .borders(Borders::ALL);
     
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
@@ -120,10 +123,13 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string())
         .unwrap_or_else(|| "Unknown File".to_string());
         
+    // Create a centered title
+    let title_text = format!("⊡ {}", file_name);
+    let title = create_centered_title(&title_text, area.width);
+    
     let block = Block::default()
-        .title(format!("Viewing: {}", file_name))
-        .borders(Borders::ALL)
-        .title_style(Style::default().add_modifier(Modifier::BOLD));
+        .title(title)
+        .borders(Borders::ALL);
     
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
@@ -248,4 +254,27 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
         help_paragraph, 
         help_area
     );
+}
+
+/// Create a centered title string based on the available width
+fn create_centered_title(title: &str, width: u16) -> String {
+    if width <= 4 {  // Need at least 2 chars for borders + 1 for title + 1 for space
+        return format!(" {} ", title); // Basic padding with minimal space
+    }
+    
+    // Calculate usable width (accounting for borders and spaces)
+    let usable_width = width as usize - 4;  // 2 for borders, 2 for minimum spaces
+    let title_len = title.chars().count();
+    
+    if title_len >= usable_width {
+        return format!(" {} ", title); // Not enough space for centering, just add minimal padding
+    }
+    
+    // Calculate padding
+    let padding = usable_width - title_len;
+    let left_padding = padding / 2;
+    let right_padding = padding - left_padding;
+    
+    // Create centered title with proper spaces on both sides to preserve borders
+    format!(" {}{}{} ", " ".repeat(left_padding), title, " ".repeat(right_padding))
 }
