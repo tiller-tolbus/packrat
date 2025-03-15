@@ -1,0 +1,5 @@
+/target
+
+# Ignore debug state dumps but keep the directory
+/debug/*
+!/debug/.gitkeep
