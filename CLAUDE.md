@@ -6,6 +6,11 @@ Do not write outside this directory.
 Keep your todo list in todo.txt
 ---
 
+---
+CLAUDE, DO NOT RUN THIS CODE YOURSELF!
+You are being run in a terminal and attempting to run this program will cause the user session to bug out, erasing your context window.
+Instead, write test cases for the things you want to handle, or let the user try the program themselves and ask them questions.
+---
 
 # Abstract
 

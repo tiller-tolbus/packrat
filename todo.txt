@@ -1,6 +1,6 @@
 # Packrat Development Todo List
 
-## Phase 1: File Explorer UI (Current Phase)
+## Phase 1: File Explorer UI (Completed)
 - [x] Set up project structure
 - [x] Implement basic file explorer with navigation
 - [x] Implement chroot functionality to prevent going above root
@@ -9,12 +9,16 @@
 - [x] Fix any bugs in file explorer navigation
 - [x] Add tests for Phase 1 functionality
 
-## Phase 2: Text Viewer & Scrolling
-- [ ] Implement basic text viewer that opens when a file is selected
-- [ ] Add vertical scrolling with keyboard controls
-- [ ] Add proper file content display
-- [ ] Handle large files efficiently
-- [ ] Exit back to file explorer
+## Phase 2: Text Viewer & Scrolling (Current Phase)
+- [x] Implement basic text viewer that opens when a file is selected
+- [x] Add vertical scrolling with keyboard controls
+- [x] Add proper file content display
+- [x] Handle large files efficiently
+- [x] Exit back to file explorer
+- [x] Add test for opening a text file and verifying content display
+- [x] Add test for scrolling through file content
+- [x] Add test for boundary conditions (no over-scrolling)
+- [x] Add test for exiting and re-entering the viewer (state persistence)
 
 ## Phase 3: Text Selection & Highlighting
 - [ ] Implement text selection with mouse

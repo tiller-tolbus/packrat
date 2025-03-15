@@ -146,7 +146,7 @@ impl Explorer {
         }
     }
     
-    /// Open the selected entry (directory or file)
+    /// Open the selected entry (directory only)
     pub fn open_selected(&mut self) -> Result<()> {
         if self.entries.is_empty() {
             return Ok(());
@@ -158,11 +158,8 @@ impl Explorer {
             // Change to the selected directory
             self.current_dir = selected.path.clone();
             self.load_entries()?;
-        } else {
-            // For Phase 1, we just acknowledge file selection
-            // In Phase 2, this will trigger the file viewer
-            println!("Selected file: {}", selected.path.display());
         }
+        // File handling is now done in the App struct
         
         Ok(())
     }
