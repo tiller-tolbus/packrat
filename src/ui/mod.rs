@@ -167,17 +167,19 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
             
             // Define style based on selection status
             let style = if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White)
+                Style::default().bg(Color::Yellow).fg(Color::Black)
             } else {
                 Style::default().fg(Color::Reset)
             };
             
             // Create the line with proper styling and cursor if needed
             if is_cursor_line {
-                let cursor_style = Style::default().bg(Color::Blue).fg(Color::White);
-                
-                // If in selection mode, use a different cursor style
-                let cursor_symbol = if viewer.is_selection_mode() { "▶" } else { ">" };
+                // Use different cursor styles based on mode
+                let (cursor_symbol, cursor_style) = if viewer.is_selection_mode() {
+                    ("▶", Style::default().bg(Color::Yellow).fg(Color::Black))
+                } else {
+                    (">", Style::default().bg(Color::DarkGray).fg(Color::White))
+                };
                 
                 Line::from(vec![
                     Span::styled(format!("{} ", cursor_symbol), cursor_style),
@@ -346,46 +348,39 @@ fn create_centered_title(title: &str, width: u16) -> String {
     format!(" {}{}{} ", " ".repeat(left_padding), title, " ".repeat(right_padding))
 }
 
-/// Render a debug message overlay at the bottom of the screen
-/// 
-/// This function creates a temporary overlay that appears at the bottom of the screen
-/// and shows debug information without disrupting the main UI.
+/// Render a debug message in a simple status bar at the bottom of the screen
 pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
     let terminal_size = frame.size();
     
-    // Create an area for the debug overlay at the bottom of the screen
-    // Maximum height of 8 rows or 30% of the terminal height, whichever is smaller
-    let max_height = (terminal_size.height as f32 * 0.3).min(8.0) as u16;
-    let message_lines = message.lines().count() as u16;
-    let height = message_lines.min(max_height);
-    
+    // Create a minimal area for a status message at the bottom
     let overlay_area = Rect {
-        x: 2,
-        y: terminal_size.height.saturating_sub(height + 2),
-        width: terminal_size.width.saturating_sub(4),
-        height: height + 2, // +2 for borders
+        x: 0,
+        y: terminal_size.height.saturating_sub(1),
+        width: terminal_size.width,
+        height: 1, // Just one line for a status message
     };
     
-    // Create a semi-transparent background that covers the overlay area
+    // Clear the background
     frame.render_widget(Clear, overlay_area);
     
-    // Render the debug message in a bordered block
-    let debug_block = Block::default()
-        .title(" Debug Info ")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+    // Create a short, concise message (truncate if too long)
+    let max_display_len = overlay_area.width.saturating_sub(4) as usize; // Leave a little space
+    let display_message = if message.len() > max_display_len {
+        format!("{}...", &message[0..max_display_len.saturating_sub(3)])
+    } else {
+        message.to_string()
+    };
     
-    // Wrap our message in a paragraph
-    let debug_text = message.lines()
-        .map(|line| Line::from(line))
-        .collect::<Vec<Line>>();
+    // Create a simple paragraph with the message
+    let status_text = Line::from(vec![
+        Span::styled(" • ", Style::default().fg(Color::LightGreen)),
+        Span::styled(display_message, Style::default().fg(Color::White))
+    ]);
     
-    let debug_paragraph = Paragraph::new(debug_text)
-        .block(debug_block)
-        .style(Style::default().fg(Color::Reset).bg(Color::Black))
-        .wrap(Wrap { trim: false });
+    let status_widget = Paragraph::new(status_text)
+        .style(Style::default().bg(Color::Black));
     
-    frame.render_widget(debug_paragraph, overlay_area);
+    frame.render_widget(status_widget, overlay_area);
 }
 
 /// UI state serialization for debugging
@@ -466,7 +461,7 @@ impl UiSerializer {
         writeln!(&mut output, "====================").unwrap();
         
         // Show current scroll position and nearby content (10 lines)
-        let pos = viewer.scroll_position();
+        let _pos = viewer.scroll_position();
         let cursor_pos = viewer.cursor_position();
         let content = viewer.content();
         let selection_range = viewer.selection_range();

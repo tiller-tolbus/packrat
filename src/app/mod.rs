@@ -254,13 +254,12 @@ impl App {
             // Toggle selection mode with Space
             KeyCode::Char(' ') => {
                 self.viewer.toggle_selection_mode();
-                self.state.set_debug_message(
-                    format!(
-                        "Selection mode: {}", 
-                        if self.viewer.is_selection_mode() { "ON" } else { "OFF" }
-                    ), 
-                    2
-                );
+                let message = if self.viewer.is_selection_mode() {
+                    "Selection mode activated - Use cursor keys to select text"
+                } else {
+                    "Selection mode deactivated"
+                };
+                self.state.set_debug_message(message.to_string(), 2);
             },
             
             // Line-based cursor movement

@@ -44,7 +44,7 @@ impl Default for AppState {
 impl AppState {
     /// Set a debug message to be displayed at the bottom of the screen
     /// The message will be automatically cleared after the specified duration (in seconds)
-    pub fn set_debug_message(&mut self, message: String, duration_secs: u64) {
+    pub fn set_debug_message(&mut self, message: String, _duration_secs: u64) {
         self.debug_message = Some(message);
         self.debug_message_time = Some(std::time::Instant::now());
         
