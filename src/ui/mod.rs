@@ -1,7 +1,7 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, ListState, Wrap};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, ListState, Wrap, Clear};
 use ratatui::Frame;
 use std::fmt::Write;
 
@@ -11,9 +11,15 @@ use crate::viewer::Viewer;
 
 /// Render the UI
 pub fn render(frame: &mut Frame, state: &AppState, explorer: &Explorer, viewer: &Viewer) {
+    // Render the main UI based on the current mode
     match state.mode {
         AppMode::Explorer => render_explorer_mode(frame, state, explorer),
         AppMode::Viewer => render_viewer_mode(frame, state, viewer),
+    }
+    
+    // Render debug message overlay if one exists
+    if let Some(message) = &state.debug_message {
+        render_debug_overlay(frame, message);
     }
 }
 
@@ -278,6 +284,48 @@ fn create_centered_title(title: &str, width: u16) -> String {
     
     // Create centered title with proper spaces on both sides to preserve borders
     format!(" {}{}{} ", " ".repeat(left_padding), title, " ".repeat(right_padding))
+}
+
+/// Render a debug message overlay at the bottom of the screen
+/// 
+/// This function creates a temporary overlay that appears at the bottom of the screen
+/// and shows debug information without disrupting the main UI.
+pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
+    let terminal_size = frame.size();
+    
+    // Create an area for the debug overlay at the bottom of the screen
+    // Maximum height of 8 rows or 30% of the terminal height, whichever is smaller
+    let max_height = (terminal_size.height as f32 * 0.3).min(8.0) as u16;
+    let message_lines = message.lines().count() as u16;
+    let height = message_lines.min(max_height);
+    
+    let overlay_area = Rect {
+        x: 2,
+        y: terminal_size.height.saturating_sub(height + 2),
+        width: terminal_size.width.saturating_sub(4),
+        height: height + 2, // +2 for borders
+    };
+    
+    // Create a semi-transparent background that covers the overlay area
+    frame.render_widget(Clear, overlay_area);
+    
+    // Render the debug message in a bordered block
+    let debug_block = Block::default()
+        .title(" Debug Info ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow));
+    
+    // Wrap our message in a paragraph
+    let debug_text = message.lines()
+        .map(|line| Line::from(line))
+        .collect::<Vec<Line>>();
+    
+    let debug_paragraph = Paragraph::new(debug_text)
+        .block(debug_block)
+        .style(Style::default().fg(Color::White).bg(Color::Black))
+        .wrap(Wrap { trim: false });
+    
+    frame.render_widget(debug_paragraph, overlay_area);
 }
 
 /// UI state serialization for debugging

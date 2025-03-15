@@ -69,8 +69,16 @@ impl App {
 
     /// Run the application main loop
     pub fn run(&mut self) -> Result<()> {
+        // Configure debug message auto-clear duration (in seconds)
+        const DEBUG_MESSAGE_DURATION: u64 = 5;
+        
         // Main loop
         while !self.state.should_quit {
+            // Check if we should clear any debug messages
+            if self.state.should_clear_debug_message(DEBUG_MESSAGE_DURATION) {
+                self.state.clear_debug_message();
+            }
+            
             // Draw the UI
             self.terminal.draw(|frame| {
                 render(frame, &self.state, &self.explorer, &self.viewer);
@@ -142,8 +150,9 @@ impl App {
         file.write_all(ui_state.as_bytes())
             .with_context(|| "Failed to write UI state to file")?;
             
-        // Also print the path so the user knows where to find it
-        println!("UI state dumped to: {:?}", debug_file_path);
+        // Show the debug message in the UI overlay instead of printing to stdout
+        let debug_message = format!("Debug information saved to: {}", debug_file_path.display());
+        self.state.set_debug_message(debug_message, 5);
         
         Ok(())
     }
