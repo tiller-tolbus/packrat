@@ -35,6 +35,8 @@
 ## Phase 2.6: UI Fixes & Enhancements (Completed)
 - [x] Fix ESC key to exit both help panel and viewer modes consistently
 - [x] Update explorer mode to handle ESC key (should exit application)
+- [x] Fix text color in light mode for text viewer
+- [x] Update status line and debug text colors for better visibility in light mode
 
 ## Phase 3: Text Selection & Highlighting
 - [ ] Implement text selection with mouse

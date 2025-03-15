@@ -153,7 +153,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     
     // Create and render the paragraph widget
     let content_widget = Paragraph::new(content)
-        .style(Style::default().fg(Color::White))
+        .style(Style::default().fg(Color::Reset))  // Use terminal's default foreground color instead of white
         .wrap(Wrap { trim: false });
     
     frame.render_widget(content_widget, inner_area);
@@ -162,7 +162,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
 /// Render the explorer status line - more compact to fit in small terminals
 fn render_explorer_status(frame: &mut Frame, area: Rect) {
     let status = Paragraph::new(" q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help")
-        .style(Style::default().fg(Color::Gray));
+        .style(Style::default().fg(Color::Reset));
     
     frame.render_widget(status, area);
 }
@@ -170,7 +170,7 @@ fn render_explorer_status(frame: &mut Frame, area: Rect) {
 /// Render the viewer status line - more compact to fit in small terminals
 fn render_viewer_status(frame: &mut Frame, area: Rect) {
     let status = Paragraph::new(" q/Esc:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help")
-        .style(Style::default().fg(Color::Gray));
+        .style(Style::default().fg(Color::Reset));
     
     frame.render_widget(status, area);
 }
@@ -322,7 +322,7 @@ pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
     
     let debug_paragraph = Paragraph::new(debug_text)
         .block(debug_block)
-        .style(Style::default().fg(Color::White).bg(Color::Black))
+        .style(Style::default().fg(Color::Reset).bg(Color::Black))
         .wrap(Wrap { trim: false });
     
     frame.render_widget(debug_paragraph, overlay_area);
