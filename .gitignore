@@ -3,3 +3,6 @@
 # Ignore debug state dumps but keep the directory
 /debug/*
 !/debug/.gitkeep
+
+# Ignore reference files directory
+/.refs/
