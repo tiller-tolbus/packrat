@@ -1,8 +1,7 @@
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::fs::{self, File};
 use std::io::Write;
-use std::env;
 use tempfile::tempdir;
 
 // Import the Explorer from the main crate

@@ -1,6 +1,6 @@
 use anyhow::Result;
-use std::path::{Path, PathBuf};
-use std::fs::{self, File};
+use std::path::PathBuf;
+use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;
 

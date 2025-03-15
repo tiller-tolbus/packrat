@@ -20,4 +20,6 @@ pub struct AppState {
     pub should_quit: bool,
     /// Current application mode
     pub mode: AppMode,
+    /// Whether to show the help panel
+    pub show_help: bool,
 }
