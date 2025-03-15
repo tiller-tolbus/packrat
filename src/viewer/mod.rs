@@ -1,7 +1,8 @@
-use anyhow::{Context, Result};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use anyhow::{Context, Result, anyhow};
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
+use crate::utils::generate_chunk_filename;
 
 /// Text viewer component
 pub struct Viewer {
@@ -17,6 +18,8 @@ pub struct Viewer {
     selection_start: Option<usize>,
     /// The current cursor position (used for selection)
     cursor_position: usize,
+    /// Ranges of lines that have been chunked (start, end)
+    chunked_ranges: Vec<(usize, usize)>,
 }
 
 impl Viewer {
@@ -29,6 +32,7 @@ impl Viewer {
             selection_mode: false,
             selection_start: None,
             cursor_position: 0,
+            chunked_ranges: Vec::new(),
         }
     }
     
@@ -56,6 +60,7 @@ impl Viewer {
         self.cursor_position = 0;
         self.selection_mode = false;
         self.selection_start = None;
+        self.chunked_ranges = Vec::new();
         
         Ok(())
     }
@@ -226,5 +231,72 @@ impl Viewer {
         
         // Return sliced content
         self.content[start..end].iter().collect()
+    }
+    
+    /// Save current selection as a chunk
+    pub fn save_selection_as_chunk(&mut self, chunk_dir: &Path, root_dir: &Path) -> Result<PathBuf> {
+        // Get selected range
+        let range = self.selection_range().ok_or_else(|| anyhow!("No text selected"))?;
+        
+        // Check if the selection is valid
+        if range.0 >= self.content.len() || range.1 >= self.content.len() {
+            return Err(anyhow!("Invalid selection range"));
+        }
+        
+        // Extract the lines
+        let selected_content = &self.content[range.0..=range.1];
+        
+        // Create chunk filename
+        let file_path = self.file_path().ok_or_else(|| anyhow!("No file opened"))?;
+        let chunk_filename = generate_chunk_filename(file_path, root_dir, range.0, range.1);
+        let chunk_path = chunk_dir.join(chunk_filename);
+        
+        // Ensure chunk directory exists
+        fs::create_dir_all(chunk_dir)?;
+        
+        // Write chunk to file
+        let mut file = File::create(&chunk_path)?;
+        for line in selected_content {
+            writeln!(file, "{}", line)?;
+        }
+        
+        // Add to chunked ranges
+        self.chunked_ranges.push(range);
+        
+        Ok(chunk_path)
+    }
+    
+    /// Check if a line is part of a saved chunk
+    pub fn is_line_chunked(&self, line_number: usize) -> bool {
+        self.chunked_ranges.iter().any(|(start, end)| {
+            line_number >= *start && line_number <= *end
+        })
+    }
+    
+    /// Get all chunked ranges
+    pub fn chunked_ranges(&self) -> &[(usize, usize)] {
+        &self.chunked_ranges
+    }
+    
+    /// Calculate the percentage of file that has been chunked
+    pub fn chunking_percentage(&self) -> f64 {
+        if self.content.is_empty() {
+            return 0.0;
+        }
+        
+        // Count unique lines that are chunked
+        let mut chunked_lines = vec![false; self.content.len()];
+        
+        for (start, end) in &self.chunked_ranges {
+            for i in *start..=*end {
+                if i < chunked_lines.len() {
+                    chunked_lines[i] = true;
+                }
+            }
+        }
+        
+        // Calculate percentage
+        let total_chunked = chunked_lines.iter().filter(|&&chunked| chunked).count();
+        (total_chunked as f64 / self.content.len() as f64) * 100.0
     }
 }

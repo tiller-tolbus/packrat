@@ -167,9 +167,11 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
                 .map(|(start, end)| line_position >= start && line_position <= end)
                 .unwrap_or(false);
             
-            // Define style based on selection status
+            // Define style based on selection and chunk status
             let style = if is_selected {
                 Style::default().bg(Color::Yellow).fg(Color::Black)
+            } else if viewer.is_line_chunked(line_position) {
+                Style::default().bg(Color::DarkGray).fg(Color::Yellow)
             } else {
                 Style::default().fg(Color::Reset)
             };
@@ -224,8 +226,15 @@ fn render_viewer_status(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         }
     };
     
-    let status_text = format!(" ?:Help | Space:Toggle Selection | {status} q/Esc:Back | ↑↓/kj:Move | PgUp/Dn:Page | Home/End:Jump", 
-        status = selection_info);
+    // Add chunking percentage if any chunks exist
+    let chunk_info = if viewer.chunking_percentage() > 0.0 {
+        format!("{:.1}% CHUNKED | ", viewer.chunking_percentage())
+    } else {
+        "".to_string()
+    };
+    
+    let status_text = format!(" ?:Help | Space:Toggle Selection | s:Save Chunk | {}{} q/Esc:Back | ↑↓/kj:Move", 
+        chunk_info, selection_info);
     
     let status = Paragraph::new(status_text)
         .style(Style::default().fg(Color::Reset));
@@ -301,6 +310,7 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
                 Line::from(vec![
                     Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
+                Line::from("  s               Save selected text as chunk"),
                 Line::from("  e               Edit selected text"),
                 Line::from("  q, Esc          Return to file explorer"),
                 Line::from(""),

@@ -104,6 +104,11 @@ impl Explorer {
         &self.current_dir
     }
     
+    /// Get the root directory path
+    pub fn root_dir(&self) -> &Path {
+        &self.root_dir
+    }
+    
     /// Get the current selected index
     pub fn selected_index(&self) -> usize {
         self.selected_index

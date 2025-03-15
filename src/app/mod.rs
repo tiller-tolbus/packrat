@@ -290,6 +290,31 @@ impl App {
                 }
             },
             
+            // Save chunk with 'S' key
+            KeyCode::Char('s') => {
+                // Only save if there's a selection
+                if let Some(_) = self.viewer.selection_range() {
+                    // Ensure chunks directory exists
+                    match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                        Ok(path) => {
+                            // Clear selection after saving
+                            self.viewer.clear_selection();
+                            let percent = self.viewer.chunking_percentage();
+                            self.state.set_debug_message(
+                                format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                         path.display(), percent), 
+                                3
+                            );
+                        },
+                        Err(e) => {
+                            self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
+                        }
+                    }
+                } else {
+                    self.state.set_debug_message("No text selected for chunking".to_string(), 2);
+                }
+            },
+            
             // Line-based cursor movement
             KeyCode::Up | KeyCode::Char('k') => self.viewer.cursor_up(),
             KeyCode::Down | KeyCode::Char('j') => self.viewer.cursor_down(),
