@@ -52,19 +52,38 @@
 ## Phase 3.5: Integrated Text Editing (Optional)
 - [x] Implement 'E' key to enter edit mode for selected lines
 - [x] Integrate tui-textarea crate for editing capability
-- [x] Allow editing of selected text in editor view
-- [x] Save edits and return to viewer mode
-- [ ] Update selection to reflect edited content (will be implemented in Phase 4)
+- [x] Allow editing of selected text before chunking (not modifying original file)
+- [x] Return to viewer mode after editing
+- [ ] When saving chunk with 'S' after editing, save the edited content, not original
 - [x] Add appropriate error handling for empty selections
 - [ ] Add tests for text editing functionality
+- [ ] Add test to verify original files are NEVER modified by the editor
 
 ## Phase 4: Chunk Saving & Tracking
 - [ ] Implement saving selected lines as chunk with 'S' key
-- [ ] Highlight saved chunks in the viewer
-- [ ] Update file explorer to show chunking progress 
-- [ ] Create chunks directory if it doesn't exist
-- [ ] Update status indicators after chunking
+- [ ] Support saving edited content from editor mode instead of original content
+- [ ] Create chunks directory if it doesn't exist (./chunks/ by default)
+- [ ] Create filename scheme for chunks: path_from_root_converted_to_underscores_START-END.txt (e.g., /foo/bar.py → foo_bar_py_3-10.txt)
+- [ ] Track original selected region in source file even if chunk content is edited
+- [ ] Add chunk metadata format tracking: original file path, start/end lines, edit status, etc.
+- [ ] Implement tracking of which lines have been chunked for each file
+- [ ] Highlight saved chunks in the viewer with different color than selections
+- [ ] Implement chunk overlap detection and warn users
+- [ ] Update file explorer to show chunking progress (color-code files)
+- [ ] Update status indicators after chunking to show progress
+- [ ] Add Viewer mode indicator when viewing files with chunks
+- [ ] Create mechanism to list and browse all chunks for a file
 - [ ] Add tests for chunk saving functionality
+- [ ] Add test to verify chunk content matches edited version when using editor mode
+- [ ] Add gitignore entry for chunks directory
+
+## Data Safety Tests (Critical)
+- [ ] Create comprehensive test suite to verify original files are never modified
+- [ ] Test all paths: direct chunking, edit-then-chunk, undo/redo, filesystem events
+- [ ] Add file integrity checks before and after operations
+- [ ] Implement test with filesystem monitoring to detect any unauthorized writes
+- [ ] Add stress tests with simulated crashes to ensure data safety
+- [ ] Document data safety guarantees in README
 
 ## Phase 5: Filesystem Monitoring
 - [ ] Implement file system watching with Notify crate
