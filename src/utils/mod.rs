@@ -8,10 +8,13 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
     } else {
         // Make sure we have room for the ellipsis
         if max_len < 3 {
-            return s[0..max_len].to_string();
+            // For very short max_len, just truncate without ellipsis
+            return s.chars().take(max_len).collect();
         }
         
-        format!("{}...", &s[0..(max_len - 3)])
+        // Truncate and add ellipsis
+        let truncated: String = s.chars().take(max_len - 3).collect();
+        format!("{}...", truncated)
     }
 }
 
@@ -36,7 +39,10 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
 pub fn generate_chunk_filename(file_path: &std::path::Path, root_path: &std::path::Path, start_line: usize, end_line: usize) -> String {
     // Convert file_path to be relative to root_path
     let relative_path = if file_path.starts_with(root_path) {
-        file_path.strip_prefix(root_path).unwrap_or(file_path)
+        match file_path.strip_prefix(root_path) {
+            Ok(rel_path) => rel_path,
+            Err(_) => file_path,
+        }
     } else {
         file_path
     };
@@ -49,6 +55,13 @@ pub fn generate_chunk_filename(file_path: &std::path::Path, root_path: &std::pat
     
     // Remove leading underscore if present (from absolute paths)
     let sanitized_path = sanitized_path.trim_start_matches('_');
+    
+    // Handle empty path (should be impossible but being defensive)
+    let sanitized_path = if sanitized_path.is_empty() {
+        "unnamed_file"
+    } else {
+        sanitized_path
+    };
     
     // Add line range (converting from 0-indexed to 1-indexed for user-facing numbers)
     format!("{}_{}-{}.txt", sanitized_path, start_line + 1, end_line + 1)
