@@ -1,19 +1,21 @@
 pub mod state;
 mod events;
 
-use anyhow::Result;
-use crossterm::event::{self, Event};
+use anyhow::{Context, Result};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::ExecutableCommand;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
-use std::io::{self, Stdout};
-use std::time::Duration;
+use std::fs::{self, File};
+use std::io::{self, Stdout, Write};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use self::events::EventHandler;
 use self::state::{AppMode, AppState};
+use crate::config::Config;
 use crate::explorer::Explorer;
-use crate::ui::render;
+use crate::ui::{render, UiSerializer};
 use crate::viewer::Viewer;
 
 /// Main application struct
@@ -28,6 +30,8 @@ pub struct App {
     explorer: Explorer,
     /// Text viewer
     viewer: Viewer,
+    /// Application configuration
+    config: Config,
 }
 
 impl App {
@@ -45,6 +49,13 @@ impl App {
         let events = EventHandler::new(Duration::from_millis(100));
         let explorer = Explorer::new(".")?; // Start in current directory
         let viewer = Viewer::new();
+        let config = Config::default();
+        
+        // Create debug directory if enabled
+        if config.enable_debug {
+            fs::create_dir_all(&config.debug_dir)
+                .with_context(|| format!("Failed to create debug directory: {:?}", config.debug_dir))?;
+        }
 
         Ok(Self {
             terminal,
@@ -52,6 +63,7 @@ impl App {
             events,
             explorer,
             viewer,
+            config,
         })
     }
 
@@ -81,11 +93,59 @@ impl App {
 
     /// Handle key events
     fn handle_key_event(&mut self, event: event::KeyEvent) {
+        // Handle debug shortcuts if enabled, regardless of mode
+        if self.config.enable_debug && event.modifiers.contains(KeyModifiers::CONTROL) {
+            match event.code {
+                // Ctrl+D: Dump UI state
+                KeyCode::Char('d') => {
+                    if let Err(e) = self.dump_ui_state() {
+                        eprintln!("Error dumping UI state: {}", e);
+                    }
+                    return;
+                },
+                _ => {}
+            }
+        }
 
         match self.state.mode {
             AppMode::Explorer => self.handle_explorer_key_event(event),
             AppMode::Viewer => self.handle_viewer_key_event(event),
         }
+    }
+    
+    /// Dump the current UI state to a file in the debug directory
+    fn dump_ui_state(&mut self) -> Result<()> {
+        // Generate a timestamp for the filename
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+            
+        // Create the debug file path
+        let debug_file_path = self.config.debug_dir.join(format!("ui_state_{}.txt", timestamp));
+        
+        // Create a new file
+        let mut file = File::create(&debug_file_path)
+            .with_context(|| format!("Failed to create debug file: {:?}", debug_file_path))?;
+            
+        // Capture the current UI state
+        let ui_state = match self.state.mode {
+            AppMode::Explorer => {
+                UiSerializer::capture_explorer(&self.state, &self.explorer)
+            },
+            AppMode::Viewer => {
+                UiSerializer::capture_viewer(&self.state, &self.viewer)
+            },
+        };
+        
+        // Write the UI state to the file
+        file.write_all(ui_state.as_bytes())
+            .with_context(|| "Failed to write UI state to file")?;
+            
+        // Also print the path so the user knows where to find it
+        println!("UI state dumped to: {:?}", debug_file_path);
+        
+        Ok(())
     }
 
     /// Handle key events in explorer mode

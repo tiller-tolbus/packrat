@@ -29,6 +29,7 @@
 - [x] Clean up unused imports and warnings in cargo
 - [x] Optimize UI layout by moving titles into content blocks
 - [x] Center titles in block headers for improved aesthetics
+- [x] Add debug mode with UI state capture (Ctrl+D) for viewing the rendered UI
 
 ## Phase 3: Text Selection & Highlighting
 - [ ] Implement text selection with mouse

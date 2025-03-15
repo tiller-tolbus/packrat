@@ -99,6 +99,11 @@ impl Explorer {
         &self.entries
     }
     
+    /// Get the current directory path
+    pub fn current_path(&self) -> &Path {
+        &self.current_dir
+    }
+    
     /// Get the current selected index
     pub fn selected_index(&self) -> usize {
         self.selected_index

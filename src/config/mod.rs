@@ -10,6 +10,10 @@ pub struct Config {
     pub chunk_dir: PathBuf,
     /// Maximum chunk size in bytes (0 = no limit)
     pub max_chunk_size: usize,
+    /// Enable debug features (like UI state dump)
+    pub enable_debug: bool,
+    /// Directory to save debug output files
+    pub debug_dir: PathBuf,
 }
 
 impl Default for Config {
@@ -19,6 +23,10 @@ impl Default for Config {
             chunk_dir: PathBuf::from("chunks"),
             // No default chunk size limit
             max_chunk_size: 0,
+            // Debug features enabled by default in development
+            enable_debug: true,
+            // Debug output directory
+            debug_dir: PathBuf::from("debug"),
         }
     }
 }

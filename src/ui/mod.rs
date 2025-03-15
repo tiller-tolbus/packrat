@@ -3,6 +3,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, ListState, Wrap};
 use ratatui::Frame;
+use std::fmt::Write;
 
 use crate::app::state::{AppMode, AppState};
 use crate::explorer::Explorer;
@@ -277,4 +278,98 @@ fn create_centered_title(title: &str, width: u16) -> String {
     
     // Create centered title with proper spaces on both sides to preserve borders
     format!(" {}{}{} ", " ".repeat(left_padding), title, " ".repeat(right_padding))
+}
+
+/// UI state serialization for debugging
+pub struct UiSerializer;
+
+impl UiSerializer {
+    /// Capture the explorer mode UI state as a formatted string
+    pub fn capture_explorer(state: &AppState, explorer: &Explorer) -> String {
+        let mut output = String::new();
+        
+        // Add header
+        writeln!(&mut output, "=== PACKRAT UI STATE DUMP ===").unwrap();
+        writeln!(&mut output, "Mode: Explorer").unwrap();
+        writeln!(&mut output, "Time: {:?}", std::time::SystemTime::now()).unwrap();
+        writeln!(&mut output, "Show Help: {}", state.show_help).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Current directory
+        writeln!(&mut output, "Current Directory: {:?}", explorer.current_path()).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Directory entries
+        writeln!(&mut output, "Directory Entries:").unwrap();
+        writeln!(&mut output, "==================").unwrap();
+        for (i, entry) in explorer.entries().iter().enumerate() {
+            let selected = if i == explorer.selected_index() { " -> " } else { "    " };
+            let entry_type = if entry.is_dir { "[DIR] " } else { "[FILE]" };
+            writeln!(&mut output, "{}{} {}", selected, entry_type, entry.name).unwrap();
+        }
+        writeln!(&mut output, "").unwrap();
+        
+        // Status
+        writeln!(&mut output, "Status Line:").unwrap();
+        writeln!(&mut output, "------------").unwrap();
+        writeln!(&mut output, "q:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help").unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Debug info
+        writeln!(&mut output, "Terminal Info:").unwrap();
+        writeln!(&mut output, "-------------").unwrap();
+        writeln!(&mut output, "Debug Mode: Active").unwrap();
+        writeln!(&mut output, "Shortcut to dump UI state: Ctrl+D").unwrap();
+        
+        output
+    }
+    
+    /// Capture the viewer mode UI state as a formatted string
+    pub fn capture_viewer(state: &AppState, viewer: &Viewer) -> String {
+        let mut output = String::new();
+        
+        // Add header
+        writeln!(&mut output, "=== PACKRAT UI STATE DUMP ===").unwrap();
+        writeln!(&mut output, "Mode: Viewer").unwrap();
+        writeln!(&mut output, "Time: {:?}", std::time::SystemTime::now()).unwrap();
+        writeln!(&mut output, "Show Help: {}", state.show_help).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // File info
+        writeln!(&mut output, "Viewing File: {:?}", viewer.file_path()).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Content
+        writeln!(&mut output, "File Content Preview:").unwrap();
+        writeln!(&mut output, "====================").unwrap();
+        
+        // Show current scroll position and nearby content (10 lines)
+        let pos = viewer.scroll_position();
+        let content = viewer.content();
+        
+        let start = if pos > 5 { pos - 5 } else { 0 };
+        let end = (start + 15).min(content.len());
+        
+        for i in start..end {
+            let marker = if i == pos { " -> " } else { "    " };
+            let line_num = format!("{:4}", i + 1);
+            let line_content = content.get(i).map_or("", |s| s.as_str());
+            writeln!(&mut output, "{}{}: {}", marker, line_num, line_content).unwrap();
+        }
+        writeln!(&mut output, "").unwrap();
+        
+        // Status
+        writeln!(&mut output, "Status Line:").unwrap();
+        writeln!(&mut output, "------------").unwrap();
+        writeln!(&mut output, "q:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help").unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Debug info
+        writeln!(&mut output, "Terminal Info:").unwrap();
+        writeln!(&mut output, "-------------").unwrap();
+        writeln!(&mut output, "Debug Mode: Active").unwrap();
+        writeln!(&mut output, "Shortcut to dump UI state: Ctrl+D").unwrap();
+        
+        output
+    }
 }
