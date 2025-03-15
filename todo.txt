@@ -22,7 +22,7 @@
 - [x] Fix file opening with right arrow / L key
 - [x] Add test for opening file with different key bindings
 
-## Phase 2.5: Cleanup & UI Improvements (Current Phase)
+## Phase 2.5: Cleanup & UI Improvements (Completed)
 - [x] Replace file/folder icons with cleaner Unicode symbols
 - [x] Implement help panel with ? key for detailed shortcuts
 - [x] Ensure status line is compact and fits in small terminals
@@ -30,9 +30,15 @@
 - [x] Optimize UI layout by moving titles into content blocks
 - [x] Center titles in block headers for improved aesthetics
 - [x] Add debug mode with UI state capture (Ctrl+D) for viewing the rendered UI
+- [x] Improve debug message display with overlay at bottom of screen
+
+## Phase 2.6: UI Fixes & Enhancements (Completed)
+- [x] Fix ESC key to exit both help panel and viewer modes consistently
+- [x] Update explorer mode to handle ESC key (should exit application)
 
 ## Phase 3: Text Selection & Highlighting
 - [ ] Implement text selection with mouse
+- [ ] Implement mouse scrolling in text viewer
 - [ ] Implement text selection with keyboard
 - [ ] Add visual highlighting for selected text
 - [ ] Handle multi-line selections

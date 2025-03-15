@@ -161,7 +161,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
 
 /// Render the explorer status line - more compact to fit in small terminals
 fn render_explorer_status(frame: &mut Frame, area: Rect) {
-    let status = Paragraph::new(" q:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help")
+    let status = Paragraph::new(" q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help")
         .style(Style::default().fg(Color::Gray));
     
     frame.render_widget(status, area);
@@ -169,7 +169,7 @@ fn render_explorer_status(frame: &mut Frame, area: Rect) {
 
 /// Render the viewer status line - more compact to fit in small terminals
 fn render_viewer_status(frame: &mut Frame, area: Rect) {
-    let status = Paragraph::new(" q:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help")
+    let status = Paragraph::new(" q/Esc:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help")
         .style(Style::default().fg(Color::Gray));
     
     frame.render_widget(status, area);
@@ -214,7 +214,7 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
                 ]),
                 Line::from("  Enter, l, →     Open selected file/directory"),
                 Line::from("  h, ←            Go to parent directory"),
-                Line::from("  q               Quit application"),
+                Line::from("  q, Esc          Quit application"),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
@@ -360,7 +360,7 @@ impl UiSerializer {
         // Status
         writeln!(&mut output, "Status Line:").unwrap();
         writeln!(&mut output, "------------").unwrap();
-        writeln!(&mut output, "q:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help").unwrap();
+        writeln!(&mut output, "q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back | ?:Help").unwrap();
         writeln!(&mut output, "").unwrap();
         
         // Debug info
@@ -409,7 +409,7 @@ impl UiSerializer {
         // Status
         writeln!(&mut output, "Status Line:").unwrap();
         writeln!(&mut output, "------------").unwrap();
-        writeln!(&mut output, "q:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help").unwrap();
+        writeln!(&mut output, "q/Esc:Back | ↑↓/kj:Scroll | PgUp/Dn:Page | Home/End:Jump | ?:Help").unwrap();
         writeln!(&mut output, "").unwrap();
         
         // Debug info

@@ -174,7 +174,7 @@ impl App {
             },
             
             // Quit application
-            KeyCode::Char('q') => self.state.should_quit = true,
+            KeyCode::Char('q') | KeyCode::Esc => self.state.should_quit = true,
             
             // Basic navigation in explorer
             KeyCode::Up | KeyCode::Char('k') => self.explorer.select_previous(),
