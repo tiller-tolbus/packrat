@@ -4,5 +4,7 @@
 /debug/*
 !/debug/.gitkeep
 
+/chunks/*
+
 # Ignore reference files directory
 /.refs/
