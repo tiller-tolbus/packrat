@@ -7,8 +7,8 @@ authors = ["Gary Lieberman <tiller.tolbus@gmail.com>"]
 
 [dependencies]
 # TUI and event handling
-ratatui = "0.26.0"
-crossterm = "0.28.0"
+ratatui = "0.29.0"
+# Let Ratatui handle the Crossterm dependency to ensure version compatibility
 
 # Filesystem operations
 walkdir = "2.4.0"
@@ -18,7 +18,7 @@ notify = "6.1.1"
 anyhow = "1.0.81"
 
 # Text editing
-tui-textarea = { version = "0.7.0", features = ["crossterm"] }
+edtui = "0.9.6"
 
 # Future dependencies
 # serde = { version = "1.0", features = ["derive"] }

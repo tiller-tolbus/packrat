@@ -1,0 +1,19 @@
+- **Text Viewing**: A user can open a selected text file in a viewer pane and scroll through its content (using keyboard arrows/Vim keys for up/down, or other typical scrolling keys).
+- **Text Selection**: A user can toggle selection mode by pressing **Space**; when selection mode is active, moving the cursor up or down highlights the selected lines to be chunked.  
+- **Save Chunks**: Pressing `S` will save the currently highlighted lines as a chunk file in a designated storage directory. Each saved chunk is written to disk persistently.
+- **Highlight Saved Chunks**: Once saved, the chunked lines in the viewer are highlighted (e.g., in orange) to indicate they have been chunked. This helps avoid re-selecting the same text. The file’s entry in the explorer also updates its color if the new chunk changes its overall chunking status.
+- **Undo Last Chunk**: Pressing `R` removes the last saved chunk (an undo feature for one step). The chunk file is deleted, and the file’s highlights/progress are updated. (As a stretch goal, pressing `Shift+R` could redo the removed chunk.)
+- **Real-time Updates**: The application watches the filesystem in real time. If chunk files or source files are added, removed, or changed outside the application, it detects these changes and updates the UI highlights and file list immediately.
+- **Configurable Settings**: A configuration allows setting the chunk storage directory path and a maximum chunk size. Stretch goals: make keybindings (like the keys for save/undo) and color schemes configurable to suit user preferences.
+
+---
+
+# Development Phases
+
+## Phase 1: File Explorer UI
+
+**Description**  
+Implement the file explorer interface. This includes displaying a list of files/folders under the given root directory and allowing the user to navigate this list using the keyboard (with Vim-style or arrow keys). The explorer must enforce chroot mode, meaning navigation is confined to the specified root – the user should not be able to go to parent directories above the root. This phase establishes basic navigation without yet opening files.
+
+**Technical Implementation Details**  
+- Use a Rust TUI library (e.g., `ratatui`) to render a scrollable list of directory entries.

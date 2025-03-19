@@ -1,0 +1,4 @@
+- **Progress Highlighting**: The explorer indicates each file’s chunking progress with color highlights – partially chunked files in yellow, mostly chunked in orange, and fully chunked in green for quick visual status.
+- **Text Viewing**: A user can open a selected text file in a viewer pane and scroll through its content (using keyboard arrows/Vim keys for up/down, or other typical scrolling keys).
+- **Text Selection**: A user can toggle selection mode by pressing **Space**; when selection mode is active, moving the cursor up or down highlights the selected lines to be chunked.  
+- **Save Chunks**: Pressing `S` will save the currently highlighted lines as a chunk file in a designated storage directory. Each saved chunk is written to disk persistently.

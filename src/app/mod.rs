@@ -2,9 +2,9 @@ pub mod state;
 mod events;
 
 use anyhow::{Context, Result};
-use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
-use crossterm::ExecutableCommand;
+use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use ratatui::crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
+use ratatui::crossterm::ExecutableCommand;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::fs::{self, File};
@@ -86,7 +86,7 @@ impl App {
             
             // Draw the UI
             self.terminal.draw(|frame| {
-                render(frame, &self.state, &self.explorer, &self.viewer, &self.editor);
+                render(frame, &self.state, &self.explorer, &self.viewer, &mut self.editor);
             })?;
 
             // Handle events
@@ -168,7 +168,7 @@ impl App {
 
     /// Handle key events in explorer mode
     fn handle_explorer_key_event(&mut self, event: event::KeyEvent) {
-        use crossterm::event::KeyCode;
+        use ratatui::crossterm::event::KeyCode;
 
         // If help panel is shown, any key dismisses it (except '?' which toggles)
         if self.state.show_help && event.code != KeyCode::Char('?') {
@@ -241,7 +241,7 @@ impl App {
 
     /// Handle key events in viewer mode
     fn handle_viewer_key_event(&mut self, event: event::KeyEvent) {
-        use crossterm::event::KeyCode;
+        use ratatui::crossterm::event::KeyCode;
 
         // If help panel is shown, any key dismisses it (except '?' which toggles)
         if self.state.show_help && event.code != KeyCode::Char('?') {
@@ -341,7 +341,7 @@ impl App {
     
     /// Handle key events in editor mode
     fn handle_editor_key_event(&mut self, event: event::KeyEvent) {
-        use crossterm::event::KeyCode;
+        use ratatui::crossterm::event::KeyCode;
         
         // Special key handling
         match event.code {
@@ -354,16 +354,78 @@ impl App {
                 self.state.mode = AppMode::Viewer;
             },
             
-            // Save changes and return to viewer
+            // Handle Enter key for Vim commands (e.g., ":wq", ":q!")
+            KeyCode::Enter if self.editor.is_save_command() => {
+                // User typed :wq or :x - save the content as a chunk before exiting
+                // Get the edited content
+                let edited_content = self.editor.content();
+                
+                // Update viewer with the edited content if a selection exists
+                if let Some((_start, _end)) = self.viewer.selection_range() {
+                    // Replace the selected lines with the edited content
+                    if self.viewer.update_selected_content(edited_content) {
+                        // Save the updated content as a chunk
+                        match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                            Ok(path) => {
+                                // Clear selection after saving
+                                self.viewer.clear_selection();
+                                let percent = self.viewer.chunking_percentage();
+                                self.state.set_debug_message(
+                                    format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                             path.display(), percent), 
+                                    3
+                                );
+                            },
+                            Err(e) => {
+                                self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
+                            }
+                        }
+                    } else {
+                        // Show error message if replacement failed
+                        self.state.set_debug_message("Failed to update content - selection range may be invalid".to_string(), 3);
+                    }
+                }
+                
+                // Return to viewer mode
+                self.state.mode = AppMode::Viewer;
+            },
+            
+            // Save changes, create chunk, and return to viewer
             KeyCode::Char('s') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Get the edited content
-                let _edited_content = self.editor.content();
+                let edited_content = self.editor.content();
                 
-                // TODO: Update viewer with the edited content (this will be implemented in Phase 4)
+                // Update viewer with the edited content if a selection exists
+                if let Some((_start, _end)) = self.viewer.selection_range() {
+                    // Replace the selected lines with the edited content
+                    if self.viewer.update_selected_content(edited_content) {
+                        // Save the updated content as a chunk
+                        match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                            Ok(path) => {
+                                // Clear selection after saving
+                                self.viewer.clear_selection();
+                                let percent = self.viewer.chunking_percentage();
+                                self.state.set_debug_message(
+                                    format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                             path.display(), percent), 
+                                    3
+                                );
+                            },
+                            Err(e) => {
+                                self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
+                            }
+                        }
+                    } else {
+                        // Show error message if replacement failed
+                        self.state.set_debug_message("Failed to update content - selection range may be invalid".to_string(), 3);
+                    }
+                } else {
+                    // This should not normally happen (we'd need a selection to enter editor mode)
+                    self.state.set_debug_message("No selection to update".to_string(), 3);
+                }
                 
                 // Switch back to viewer mode
                 self.state.mode = AppMode::Viewer;
-                self.state.set_debug_message("Changes saved".to_string(), 2);
             },
             
             // Handle the key event with the text editor

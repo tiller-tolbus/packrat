@@ -243,7 +243,7 @@ impl Viewer {
             return Err(anyhow!("Invalid selection range"));
         }
         
-        // Extract the lines
+        // Extract the lines from the current in-memory content (which may have been edited)
         let selected_content = &self.content[range.0..=range.1];
         
         // Create chunk filename
@@ -298,5 +298,59 @@ impl Viewer {
         // Calculate percentage
         let total_chunked = chunked_lines.iter().filter(|&&chunked| chunked).count();
         (total_chunked as f64 / self.content.len() as f64) * 100.0
+    }
+    
+    /// Update the selected text content with edited content
+    pub fn update_selected_content(&mut self, edited_content: Vec<String>) -> bool {
+        // Get the selection range
+        if let Some((start, end)) = self.selection_range() {
+            // Validate the range is within bounds
+            if start >= self.content.len() || end >= self.content.len() {
+                return false;
+            }
+            
+            // Replace content in the selected range
+            let range_len = end - start + 1;
+            let replacement_len = edited_content.len();
+            
+            // Remove the selected lines and insert the edited content
+            self.content.splice(start..=end, edited_content);
+            
+            // If the number of lines has changed, we need to adjust chunked ranges
+            if range_len != replacement_len {
+                let line_diff = replacement_len as isize - range_len as isize;
+                
+                // Update chunked ranges that come after the edit
+                for i in 0..self.chunked_ranges.len() {
+                    let (chunk_start, chunk_end) = self.chunked_ranges[i];
+                    
+                    // If the chunk is entirely after the edit, shift it
+                    if chunk_start > end {
+                        self.chunked_ranges[i] = (
+                            (chunk_start as isize + line_diff) as usize,
+                            (chunk_end as isize + line_diff) as usize
+                        );
+                    }
+                    // If the chunk overlaps with the edit, we might need more complex logic
+                    // For now, we'll consider those chunks invalid and remove them
+                    else if chunk_end >= start {
+                        // Mark for removal
+                        self.chunked_ranges[i] = (0, 0);
+                    }
+                }
+                
+                // Remove invalid chunks (those marked as (0,0))
+                self.chunked_ranges.retain(|&range| range != (0, 0));
+            }
+            
+            // Update cursor position if needed (e.g., if content shrinks)
+            if self.cursor_position >= self.content.len() {
+                self.cursor_position = self.content.len().saturating_sub(1);
+            }
+            
+            return true;
+        }
+        
+        false
     }
 }

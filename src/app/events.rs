@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event};
+use ratatui::crossterm::event::{self, Event};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};

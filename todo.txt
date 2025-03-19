@@ -49,15 +49,18 @@
 - [x] Reset selection when appropriate (new file)
 - [x] Add tests for line selection functionality
 
-## Phase 3.5: Integrated Text Editing (Optional)
-- [x] Implement 'E' key to enter edit mode for selected lines
-- [x] Integrate tui-textarea crate for editing capability
-- [x] Allow editing of selected text before chunking (not modifying original file)
-- [x] Return to viewer mode after editing
-- [ ] When saving chunk with 'S' after editing, save the edited content, not original
-- [x] Add appropriate error handling for empty selections
+## Phase 3.5: Vim-like Text Editing
+- [x] Research and evaluate EdTUI as a replacement for tui-textarea
+- [x] Add EdTUI dependency to Cargo.toml
+- [x] Refactor editor module to use EdTUI instead of tui-textarea
+- [ ] Customize cursor styling in EdTUI to look more like traditional Vim cursor
+- [ ] Fix Ctrl+S behavior to properly chunk files instead of trying to save locally
+- [ ] Add support for Vim commands like `:wq`, `:q!`, etc.
+- [ ] Implement proper content transfer between viewer and editor
+- [ ] Ensure edited content is saved when chunking
+- [x] Update key bindings documentation for Vim-like controls
 - [ ] Add tests for text editing functionality
-- [ ] Add test to verify original files are NEVER modified by the editor
+- [ ] Create stress tests to verify original files are never modified
 
 ## Phase 4: Chunk Saving & Tracking
 - [ ] Implement saving selected lines as chunk with 'S' key

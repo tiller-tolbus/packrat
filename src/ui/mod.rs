@@ -11,7 +11,7 @@ use crate::explorer::Explorer;
 use crate::viewer::Viewer;
 
 /// Render the UI
-pub fn render(frame: &mut Frame, state: &AppState, explorer: &Explorer, viewer: &Viewer, editor: &Editor) {
+pub fn render(frame: &mut Frame, state: &AppState, explorer: &Explorer, viewer: &Viewer, editor: &mut Editor) {
     // Render the main UI based on the current mode
     match state.mode {
         AppMode::Explorer => render_explorer_mode(frame, state, explorer),
@@ -39,7 +39,7 @@ fn render_explorer_mode(frame: &mut Frame, state: &AppState, explorer: &Explorer
             Constraint::Min(0),     // Explorer
             Constraint::Length(1),  // Status line
         ])
-        .split(frame.size());
+        .split(frame.area());
     
     // Render file explorer (with the application title in its block)
     render_explorer_content(frame, chunks[0], explorer);
@@ -62,7 +62,7 @@ fn render_viewer_mode(frame: &mut Frame, state: &AppState, viewer: &Viewer) {
             Constraint::Min(0),     // Viewer content
             Constraint::Length(1),  // Status line
         ])
-        .split(frame.size());
+        .split(frame.area());
     
     // Render text viewer content (with file name in its block)
     render_viewer_content(frame, chunks[0], viewer);
@@ -244,7 +244,7 @@ fn render_viewer_status(frame: &mut Frame, area: Rect, viewer: &Viewer) {
 
 /// Render a help panel with detailed keyboard shortcuts
 fn render_help_panel(frame: &mut Frame, mode: AppMode) {
-    let area = frame.size();
+    let area = frame.area();
     
     // Create a centered box for the help panel
     let width = 60.min(area.width.saturating_sub(4));
@@ -325,19 +325,38 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
             vec![
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Navigation & Editing", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("Vim Modes", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  Arrow keys      Move cursor"),
-                Line::from("  PgUp, PgDn      Page up/down"),
-                Line::from("  Home, End       Start/end of line"),
-                Line::from("  Typing keys     Insert text at cursor"),
-                Line::from("  Backspace, Del  Delete text"),
+                Line::from("  Esc             Exit current mode or return to viewer"),
+                Line::from("  i               Enter insert mode"),
+                Line::from("  v               Enter visual mode"),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Navigation (Normal Mode)", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  h, j, k, l      Move cursor left, down, up, right"),
+                Line::from("  w, b            Move forward/backward by word"),
+                Line::from("  0, $            Move to start/end of line"),
+                Line::from("  gg, G           Move to start/end of document"),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Editing (Normal Mode)", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  x               Delete character under cursor"),
+                Line::from("  dd              Delete current line"),
+                Line::from("  u, Ctrl+r       Undo, redo"),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
                 Line::from("  Ctrl+S          Save changes and return to viewer"),
-                Line::from("  Esc             Cancel editing and return to viewer"),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Vim Commands", Style::default().add_modifier(Modifier::BOLD))
+                ]),
+                Line::from("  :q              Quit without saving (will warn if modified)"),
+                Line::from("  :q!             Force quit without saving changes"),
+                Line::from("  :wq, :x         Save changes as chunk and exit"),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
@@ -389,7 +408,7 @@ fn create_centered_title(title: &str, width: u16) -> String {
 
 /// Render a debug message in a simple status bar at the bottom of the screen
 pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
-    let terminal_size = frame.size();
+    let terminal_size = frame.area();
     
     // Create a minimal area for a status message at the bottom
     let overlay_area = Rect {
@@ -423,7 +442,7 @@ pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
 }
 
 /// Render the editor mode UI
-fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &Editor) {
+fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) {
     if state.show_help {
         render_help_panel(frame, AppMode::Editor);
         return;
@@ -436,7 +455,7 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &Editor) {
             Constraint::Min(0),     // Editor content
             Constraint::Length(1),  // Status line
         ])
-        .split(frame.size());
+        .split(frame.area());
     
     // Render editor content (with title in block)
     render_editor_content(frame, chunks[0], editor);
@@ -446,7 +465,7 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &Editor) {
 }
 
 /// Render the editor content
-fn render_editor_content(frame: &mut Frame, area: Rect, editor: &Editor) {
+fn render_editor_content(frame: &mut Frame, area: Rect, editor: &mut Editor) {
     // Create a centered title
     let title_text = "✎ Text Editor ✎";
     let title = create_centered_title(&title_text, area.width);
@@ -460,31 +479,10 @@ fn render_editor_content(frame: &mut Frame, area: Rect, editor: &Editor) {
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
     
-    // Get editor content
-    let content = editor.content();
-    
-    // Create a paragraph from the content
-    let text_content: Vec<Line> = content.iter()
-        .map(|line| Line::from(line.clone()))
-        .collect();
-    
-    let text_widget = Paragraph::new(text_content)
-        .style(Style::default())
-        .wrap(Wrap { trim: false });
-    
-    // Render the text
-    frame.render_widget(text_widget, inner_area);
-    
-    // Display cursor at a simulated position (first position for now)
-    // A more accurate implementation would extract the actual cursor position from textarea
-    let cursor_x = 0;
-    let cursor_y = 0;
-    
-    // Show cursor at the top-left of editing area
-    frame.set_cursor(
-        inner_area.x + cursor_x,
-        inner_area.y + cursor_y
-    );
+    // Let the editor render its view directly
+    let editor_view = editor.view();
+    // Use the Widget trait to render the editor view
+    ratatui::widgets::Widget::render(editor_view, inner_area, frame.buffer_mut());
 }
 
 /// Render the editor status line
@@ -495,7 +493,10 @@ fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
         ""
     };
     
-    let status_text = format!(" ?:Help | {}Ctrl+S:Save | Esc:Cancel | Arrow keys:Navigate | Type to edit", modified_text);
+    // Get the editor mode to display
+    let mode_text = format!("[{}] | ", editor.mode());
+    
+    let status_text = format!(" ?:Help | {}{}Ctrl+S:Save | Esc:Back | Vim keys for editing", mode_text, modified_text);
     
     let status = Paragraph::new(status_text)
         .style(Style::default().fg(Color::Reset));
