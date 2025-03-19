@@ -51,6 +51,10 @@ impl Editor {
         self.state = new_state;
         self.original_content = lines;
         self.modified = false;
+        
+        // Reset command buffer and command mode when opening editor
+        self.command_buffer.clear();
+        self.command_mode = false;
     }
     
     /// Get the current content as lines
@@ -93,6 +97,21 @@ impl Editor {
     /// Check if a command is intended to save content
     pub fn is_save_command(&self) -> bool {
         self.command_buffer == ":wq" || self.command_buffer == ":x"
+    }
+    
+    /// Check if a command is intended to quit without saving
+    pub fn is_quit_command(&self) -> bool {
+        self.command_buffer == ":q"
+    }
+    
+    /// Check if a command is intended to force quit without saving
+    pub fn is_force_quit_command(&self) -> bool {
+        self.command_buffer == ":q!"
+    }
+    
+    /// Check if we're in command mode
+    pub fn is_in_command_mode(&self) -> bool {
+        self.command_mode
     }
     
     /// Handle key event and update the modified flag if content changes

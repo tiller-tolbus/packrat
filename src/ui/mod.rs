@@ -494,12 +494,29 @@ fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
     };
     
     // Get the editor mode to display
-    let mode_text = format!("[{}] | ", editor.mode());
+    let mode = editor.mode();
     
-    let status_text = format!(" ?:Help | {}{}Ctrl+S:Save | Esc:Back | Vim keys for editing", mode_text, modified_text);
+    // Format status line differently when in command mode vs normal editing
+    let status_text;
+    let status_style;
+    
+    if mode.starts_with(':') {
+        // When typing a command, make it very visible with a special format
+        status_text = Line::from(vec![
+            Span::styled(" COMMAND: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(mode, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" | Press Enter to execute | Esc to cancel")
+        ]);
+        status_style = Style::default().bg(Color::DarkGray);
+    } else {
+        // Regular status line (keeping it concise)
+        status_text = Line::from(format!(" ?:Help | [{}] | {}Ctrl+S:Save | Esc:Back", 
+                  mode, modified_text));
+        status_style = Style::default().fg(Color::Reset);
+    };
     
     let status = Paragraph::new(status_text)
-        .style(Style::default().fg(Color::Reset));
+        .style(status_style);
     
     frame.render_widget(status, area);
 }

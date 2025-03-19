@@ -284,7 +284,9 @@ impl App {
                     
                     // Switch to editor mode
                     self.state.mode = AppMode::Editor;
-                    self.state.set_debug_message("Editing selected text".to_string(), 2);
+                    
+                    // Clear any existing debug messages to ensure bottom status line is visible
+                    self.state.clear_debug_message();
                 } else {
                     self.state.set_debug_message("No text selected for editing".to_string(), 2);
                 }
@@ -354,40 +356,70 @@ impl App {
                 self.state.mode = AppMode::Viewer;
             },
             
-            // Handle Enter key for Vim commands (e.g., ":wq", ":q!")
-            KeyCode::Enter if self.editor.is_save_command() => {
-                // User typed :wq or :x - save the content as a chunk before exiting
-                // Get the edited content
-                let edited_content = self.editor.content();
-                
-                // Update viewer with the edited content if a selection exists
-                if let Some((_start, _end)) = self.viewer.selection_range() {
-                    // Replace the selected lines with the edited content
-                    if self.viewer.update_selected_content(edited_content) {
-                        // Save the updated content as a chunk
-                        match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
-                            Ok(path) => {
-                                // Clear selection after saving
-                                self.viewer.clear_selection();
-                                let percent = self.viewer.chunking_percentage();
-                                self.state.set_debug_message(
-                                    format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                             path.display(), percent), 
-                                    3
-                                );
-                            },
-                            Err(e) => {
-                                self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
+            // Handle Enter key for Vim commands (e.g., ":wq", ":q!", ":q")
+            KeyCode::Enter => {
+                // Only process if we're in command mode
+                if self.editor.is_in_command_mode() {
+                    if self.editor.is_save_command() {
+                        // User typed :wq or :x - save the content as a chunk before exiting
+                        // Get the edited content
+                        let edited_content = self.editor.content();
+                        
+                        // Update viewer with the edited content if a selection exists
+                        if let Some((_start, _end)) = self.viewer.selection_range() {
+                            // Replace the selected lines with the edited content
+                            if self.viewer.update_selected_content(edited_content) {
+                                // Save the updated content as a chunk
+                                match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                                    Ok(path) => {
+                                        // Clear selection after saving
+                                        self.viewer.clear_selection();
+                                        let percent = self.viewer.chunking_percentage();
+                                        self.state.set_debug_message(
+                                            format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                                     path.display(), percent), 
+                                            3
+                                        );
+                                    },
+                                    Err(e) => {
+                                        self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
+                                    }
+                                }
+                            } else {
+                                // Show error message if replacement failed
+                                self.state.set_debug_message("Failed to update content - selection range may be invalid".to_string(), 3);
                             }
                         }
+                        
+                        // Return to viewer mode
+                        self.state.mode = AppMode::Viewer;
+                    } else if self.editor.is_quit_command() {
+                        // User typed :q - quit without saving if no unsaved changes
+                        if self.editor.is_modified() {
+                            self.state.set_debug_message("No write since last change (use :q! to override)".to_string(), 3);
+                            // Do not exit the editor - pass the Enter key to the editor
+                            self.editor.handle_key_event(event);
+                            return;
+                        } else {
+                            // No unsaved changes, exit to viewer mode
+                            self.state.mode = AppMode::Viewer;
+                        }
+                    } else if self.editor.is_force_quit_command() {
+                        // User typed :q! - force quit without saving
+                        if self.editor.is_modified() {
+                            self.state.set_debug_message("Exiting editor without saving changes".to_string(), 3);
+                        }
+                        self.state.mode = AppMode::Viewer;
                     } else {
-                        // Show error message if replacement failed
-                        self.state.set_debug_message("Failed to update content - selection range may be invalid".to_string(), 3);
+                        // Pass the Enter key to the editor for other commands
+                        self.editor.handle_key_event(event);
+                        return;
                     }
+                } else {
+                    // Pass the Enter key to the editor if not in command mode
+                    self.editor.handle_key_event(event);
+                    return;
                 }
-                
-                // Return to viewer mode
-                self.state.mode = AppMode::Viewer;
             },
             
             // Save changes, create chunk, and return to viewer

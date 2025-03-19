@@ -53,8 +53,8 @@
 - [x] Research and evaluate EdTUI as a replacement for tui-textarea
 - [x] Add EdTUI dependency to Cargo.toml
 - [x] Refactor editor module to use EdTUI instead of tui-textarea
-- [ ] Customize cursor styling in EdTUI to look more like traditional Vim cursor
-- [ ] Fix Ctrl+S behavior to properly chunk files instead of trying to save locally
+- [x] Customize cursor styling in EdTUI to look more like traditional Vim cursor
+- [x] Fix Ctrl+S behavior to properly chunk files instead of trying to save locally
 - [ ] Add support for Vim commands like `:wq`, `:q!`, etc.
 - [ ] Implement proper content transfer between viewer and editor
 - [ ] Ensure edited content is saved when chunking

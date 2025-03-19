@@ -1,0 +1,6 @@
+
+**Description**  
+Implement the file explorer interface. This includes displaying a list of files/folders under the given root directory and allowing the user to navigate this list using the keyboard (with Vim-style or arrow keys). The explorer must enforce chroot mode, meaning navigation is confined to the specified root – the user should not be able to go to parent directories above the root. This phase establishes basic navigation without yet opening files.
+
+**Technical Implementation Details**  
+- Use a Rust TUI library (e.g., `ratatui`) to render a scrollable list of directory entries.
