@@ -85,9 +85,6 @@
 - [x] Create comprehensive test suite to verify original files are never modified
 - [x] Test all paths: direct chunking, edit-then-chunk, undo/redo, filesystem events
 - [x] Add file integrity checks before and after operations
-- [ ] Implement test with filesystem monitoring to detect unauthorized writes
-- [ ] Add stress tests with simulated crashes to ensure data safety
-- [ ] Document data safety guarantees in README
 
 ## Phase 4.5: Token Analysis (Completed)
 - [x] Add Claude tokenizer (tiktoken-rs) for real-time token counting
@@ -98,21 +95,13 @@
 - [x] Add configurable maximum token count
 - [x] Color-code token counts based on usage percentage
 
-## Phase 5: Filesystem Monitoring
-- [ ] Implement file system watching with Notify crate
-- [ ] Update UI when files change externally
-- [ ] Track chunk files and update highlights accordingly
-- [ ] Add tests for filesystem monitoring
-
-## Phase 6: Undo Feature
-- [ ] Implement undo for last chunk with 'R' key
-- [ ] Maintain an undo stack for tracking chunks
-- [ ] Optionally implement redo with Shift+R
-- [ ] Update UI highlights when undoing/redoing
-- [ ] Add tests for undo/redo functionality
-
 ## Phase 7: Polish & Further Stretch Goals
-- [ ] Add configuration file support (TOML/YAML)
+- [x] Add configuration file support (TOML)
+  - [x] Create Config struct with serialization
+  - [x] Implement loading from config paths
+  - [x] Add command-line argument to generate config
+  - [x] Create example config file with comments
+  - [x] Support source directory, chunk directory, token limit settings
 - [ ] Implement custom keybindings
 - [ ] Add Alacritty theme support
 - [ ] Improve error handling for permission issues

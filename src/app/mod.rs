@@ -47,13 +47,19 @@ impl App {
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
 
+        // Load configuration
+        let config = Config::load()?;
+        
         // Create app components
         let state = AppState::default();
         let events = EventHandler::new(Duration::from_millis(100));
-        let mut explorer = Explorer::new(".")?; // Start in current directory
-        let viewer = Viewer::new();
+        let source_dir = config.absolute_source_dir();
+        let mut explorer = Explorer::new(&source_dir)?;
+        let mut viewer = Viewer::new();
         let editor = Editor::new();
-        let config = Config::default();
+        
+        // Configure viewer with token limit from config
+        viewer.set_max_tokens_per_chunk(config.max_tokens_per_chunk);
         
         // Create debug directory if enabled
         if config.enable_debug {
@@ -61,8 +67,13 @@ impl App {
                 .with_context(|| format!("Failed to create debug directory: {:?}", config.debug_dir))?;
         }
         
+        // Ensure chunk directory exists
+        let chunk_dir = config.absolute_chunk_dir();
+        fs::create_dir_all(&chunk_dir)
+            .with_context(|| format!("Failed to create chunk directory: {:?}", chunk_dir))?;
+        
         // Initialize chunking progress for files in the explorer
-        if let Err(e) = explorer.init_chunking_progress(&config.chunk_dir) {
+        if let Err(e) = explorer.init_chunking_progress(&chunk_dir) {
             eprintln!("Warning: Failed to initialize chunking progress: {}", e);
         }
 
@@ -230,7 +241,8 @@ impl App {
                         eprintln!("Error opening file: {}", e);
                     } else {
                         // Load any existing chunk data
-                        if let Err(e) = self.viewer.load_chunked_ranges(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                        let chunk_dir = self.config.absolute_chunk_dir();
+                        if let Err(e) = self.viewer.load_chunked_ranges(&chunk_dir, &self.explorer.root_dir()) {
                             self.state.set_debug_message(format!("Error loading chunks: {}", e), 3);
                         }
                         
@@ -318,7 +330,8 @@ impl App {
                     }
                     
                     // Ensure chunks directory exists
-                    match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                    let chunk_dir = self.config.absolute_chunk_dir();
+                    match self.viewer.save_selection_as_chunk(&chunk_dir, &self.explorer.root_dir()) {
                         Ok(path) => {
                             // Clear selection after saving
                             self.viewer.clear_selection();
@@ -426,7 +439,8 @@ impl App {
                             // Replace the selected lines with the edited content
                             if self.viewer.update_selected_content(edited_content) {
                                 // Save the updated content as a chunk
-                                match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                                let chunk_dir = self.config.absolute_chunk_dir();
+                                match self.viewer.save_selection_as_chunk(&chunk_dir, &self.explorer.root_dir()) {
                                     Ok(path) => {
                                         // Clear selection after saving
                                         self.viewer.clear_selection();
@@ -505,7 +519,8 @@ impl App {
                     // Replace the selected lines with the edited content
                     if self.viewer.update_selected_content(edited_content) {
                         // Save the updated content as a chunk
-                        match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                        let chunk_dir = self.config.absolute_chunk_dir();
+                        match self.viewer.save_selection_as_chunk(&chunk_dir, &self.explorer.root_dir()) {
                             Ok(path) => {
                                 // Clear selection after saving
                                 self.viewer.clear_selection();

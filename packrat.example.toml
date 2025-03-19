@@ -1,0 +1,27 @@
+# Packrat Configuration File
+# Copy this to packrat.toml in your project directory or to your config directory
+
+# Directory where chunks are stored
+# Can be relative to current directory or absolute path
+chunk_dir = "chunks"
+
+# Maximum number of tokens per chunk (8192 = ~6K words)
+# Claude has a context window of 200K, so adjust based on needs
+max_tokens_per_chunk = 8192
+
+# Enable debug features (like UI state dump with Ctrl+D)
+enable_debug = false
+
+# Directory to save debug output files
+debug_dir = "debug"
+
+# Default source directory to open on startup
+# Can be relative to current directory or absolute path
+source_dir = "."
+
+# Enable Vim-style keybindings (j/k for navigation)
+vim_keybindings = true
+
+# Auto-save chunks when reaching max token count
+# When enabled, will automatically save chunks when token limit is reached
+auto_save_chunks = false
