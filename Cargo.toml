@@ -24,6 +24,9 @@ edtui = "0.9.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# Claude tokenizer for token counting
+tiktoken-rs = "0.5.8"
+
 # Future dependencies
 # toml = "0.8.10"
 

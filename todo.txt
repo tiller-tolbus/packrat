@@ -76,18 +76,27 @@
 - [x] Update status indicators after chunking to show progress
 - [x] Add Viewer mode indicator when viewing files with chunks
 - [ ] Create mechanism to list and browse all chunks for a file
-- [ ] Add tests for chunk saving functionality
-- [ ] Add test to verify chunk content matches edited version when using editor mode
+- [x] Add tests for chunk saving functionality
+- [x] Add test to verify chunk content matches edited version when using editor mode
 - [x] Persist chunk highlighting between sessions
 - [x] Add gitignore entry for chunks directory
 
 ## Data Safety Tests (Critical)
-- [ ] Create comprehensive test suite to verify original files are never modified
-- [ ] Test all paths: direct chunking, edit-then-chunk, undo/redo, filesystem events
-- [ ] Add file integrity checks before and after operations
-- [ ] Implement test with filesystem monitoring to detect any unauthorized writes
+- [x] Create comprehensive test suite to verify original files are never modified
+- [x] Test all paths: direct chunking, edit-then-chunk, undo/redo, filesystem events
+- [x] Add file integrity checks before and after operations
+- [ ] Implement test with filesystem monitoring to detect unauthorized writes
 - [ ] Add stress tests with simulated crashes to ensure data safety
 - [ ] Document data safety guarantees in README
+
+## Phase 4.5: Token Analysis (Completed)
+- [x] Add Claude tokenizer (tiktoken-rs) for real-time token counting
+- [x] Implement token counting for selections and files
+- [x] Display token counts in the viewer UI (top right of screen)
+- [x] Add visual warnings for selections exceeding token limits
+- [x] Show token percentage relative to maximum allowed tokens
+- [x] Add configurable maximum token count
+- [x] Color-code token counts based on usage percentage
 
 ## Phase 5: Filesystem Monitoring
 - [ ] Implement file system watching with Notify crate

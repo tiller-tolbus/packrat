@@ -173,8 +173,23 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         format!("⊡ {}", file_name)
     };
     
-    // Create a centered title
-    let title = create_centered_title(&title_text, area.width);
+    // Add token count for the current selection
+    let token_info = if let Some(token_count) = viewer.selection_token_count() {
+        let percentage = (token_count as f64 / viewer.max_tokens_per_chunk() as f64) * 100.0;
+        
+        // Format token info based on percentage
+        if percentage >= 100.0 {
+            format!("TOKENS: {} / {} ({}% OVER LIMIT!) ", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
+        } else {
+            format!("TOKENS: {} / {} ({}%) ", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
+        }
+    } else {
+        let total = viewer.total_token_count();
+        format!("TOTAL TOKENS: {} ", total)
+    };
+    
+    // Create a title with token count on the right
+    let title = create_title_with_right_element(&title_text, &token_info, area.width);
     
     // Set border color based on chunking progress
     let border_style = if chunking_percent >= 99.0 {
@@ -384,26 +399,21 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
                     Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD))
                 ]),
                 Line::from("  ↑/k, ↓/j        Move cursor up/down"),
-                Line::from("  Shift+↑/k, Shift+↓/j  Fast scroll (5 lines at a time)"),
+                Line::from("  Shift+↑/↓, Shift+j/k  Fast scroll (5 lines)"),
                 Line::from("  PgUp, PgDn      Page up/down"),
                 Line::from("  Home, End       Jump to top/bottom"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Selection", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("Selection & Chunking", Style::default().add_modifier(Modifier::BOLD))
                 ]),
                 Line::from("  Space           Toggle selection mode"),
-                Line::from("  ↑/k, ↓/j        Select text in selection mode"),
-                Line::from(""),
-                Line::from(vec![
-                    Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
-                ]),
                 Line::from("  s               Save selected text as chunk"),
-                Line::from("  e               Edit selected text"),
-                Line::from("  q, Esc          Return to file explorer"),
+                Line::from("  e               Open selected text in editor"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("Other Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
+                Line::from("  q, Esc          Return to file explorer"),
                 Line::from("  ?               Toggle this help panel"),
                 Line::from("  Press any key to close help")
             ]
@@ -412,120 +422,46 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
             vec![
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Vim Modes", Style::default().add_modifier(Modifier::BOLD))
-                ]),
-                Line::from("  Esc             Exit current mode or return to viewer"),
-                Line::from("  i               Enter insert mode"),
-                Line::from("  v               Enter visual mode"),
-                Line::from(""),
-                Line::from(vec![
-                    Span::styled("Navigation (Normal Mode)", Style::default().add_modifier(Modifier::BOLD))
-                ]),
-                Line::from("  h, j, k, l      Move cursor left, down, up, right"),
-                Line::from("  w, b            Move forward/backward by word"),
-                Line::from("  0, $            Move to start/end of line"),
-                Line::from("  gg, G           Move to start/end of document"),
-                Line::from(""),
-                Line::from(vec![
-                    Span::styled("Editing (Normal Mode)", Style::default().add_modifier(Modifier::BOLD))
-                ]),
-                Line::from("  x               Delete character under cursor"),
-                Line::from("  dd              Delete current line"),
-                Line::from("  u, Ctrl+r       Undo, redo"),
-                Line::from(""),
-                Line::from(vec![
-                    Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
-                ]),
-                Line::from("  Ctrl+S          Save changes and return to viewer"),
-                Line::from(""),
-                Line::from(vec![
                     Span::styled("Vim Commands", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  :q              Quit without saving (will warn if modified)"),
-                Line::from("  :q!             Force quit without saving changes"),
-                Line::from("  :wq, :x         Save changes as chunk and exit"),
+                Line::from("  Normal mode: h,j,k,l for movement"),
+                Line::from("  i, a, o         Enter insert mode"),
+                Line::from("  v               Enter visual mode"),
+                Line::from("  :               Enter command mode"),
+                Line::from("  :w              Save changes"),
+                Line::from("  :wq, :x         Save and exit"),
+                Line::from("  :q              Quit (requires no changes)"),
+                Line::from("  :q!             Force quit without saving"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("Direct Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  ?               Toggle this help panel"),
+                Line::from("  Ctrl+S          Save changes and exit"),
+                Line::from("  Esc (in normal mode)  Cancel and exit"),
                 Line::from("  Press any key to close help")
             ]
         }
     };
     
-    // Render help panel with a block and title
-    let help_block = Block::default()
+    // Create a clear overlay for the help panel background
+    frame.render_widget(Clear, help_area);
+    
+    // Create the block for the help panel
+    let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
+        .style(Style::default().bg(Color::Reset).fg(Color::Reset));
     
-    let help_paragraph = Paragraph::new(content)
-        .block(help_block)
-        .alignment(ratatui::layout::Alignment::Left);
+    let inner_area = block.inner(help_area);
     
-    frame.render_widget(
-        help_paragraph, 
-        help_area
-    );
-}
-
-/// Create a centered title string based on the available width
-fn create_centered_title(title: &str, width: u16) -> String {
-    if width <= 4 {  // Need at least 2 chars for borders + 1 for title + 1 for space
-        return format!(" {} ", title); // Basic padding with minimal space
-    }
+    // Render the block first
+    frame.render_widget(block, help_area);
     
-    // Calculate usable width (accounting for borders and spaces)
-    let usable_width = width as usize - 4;  // 2 for borders, 2 for minimum spaces
-    let title_len = title.chars().count();
+    // Then render the content
+    let help_content = Paragraph::new(content)
+        .alignment(ratatui::layout::Alignment::Center);
     
-    if title_len >= usable_width {
-        return format!(" {} ", title); // Not enough space for centering, just add minimal padding
-    }
-    
-    // Calculate padding
-    let padding = usable_width - title_len;
-    let left_padding = padding / 2;
-    let right_padding = padding - left_padding;
-    
-    // Create centered title with proper spaces on both sides to preserve borders
-    format!(" {}{}{} ", " ".repeat(left_padding), title, " ".repeat(right_padding))
-}
-
-/// Render a debug message in a simple status bar at the bottom of the screen
-pub fn render_debug_overlay(frame: &mut Frame, message: &str) {
-    let terminal_size = frame.area();
-    
-    // Create a minimal area for a status message at the bottom
-    let overlay_area = Rect {
-        x: 0,
-        y: terminal_size.height.saturating_sub(1),
-        width: terminal_size.width,
-        height: 1, // Just one line for a status message
-    };
-    
-    // Clear the background
-    frame.render_widget(Clear, overlay_area);
-    
-    // Create a short, concise message (truncate if too long)
-    let max_display_len = overlay_area.width.saturating_sub(4) as usize; // Leave a little space
-    let display_message = if message.len() > max_display_len {
-        format!("{}...", &message[0..max_display_len.saturating_sub(3)])
-    } else {
-        message.to_string()
-    };
-    
-    // Create a simple paragraph with the message
-    let status_text = Line::from(vec![
-        Span::styled(" • ", Style::default().fg(Color::LightGreen)),
-        Span::styled(display_message, Style::default().fg(Color::White))
-    ]);
-    
-    let status_widget = Paragraph::new(status_text)
-        .style(Style::default().bg(Color::Black));
-    
-    frame.render_widget(status_widget, overlay_area);
+    frame.render_widget(help_content, inner_area);
 }
 
 /// Render the editor mode UI
@@ -534,7 +470,7 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
         render_help_panel(frame, AppMode::Editor);
         return;
     }
-
+    
     // Create the layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -544,71 +480,144 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
         ])
         .split(frame.area());
     
-    // Render editor content (with title in block)
-    render_editor_content(frame, chunks[0], editor);
+    // Create the editor widget area with border
+    let title = format!("✎ Editing Text");
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL);
+    
+    let inner_area = block.inner(chunks[0]);
+    frame.render_widget(block, chunks[0]);
+    
+    // Render the editor widget
+    let view = editor.view();
+    frame.render_widget(view, inner_area);
     
     // Render editor status line
     render_editor_status(frame, chunks[1], editor);
 }
 
-/// Render the editor content
-fn render_editor_content(frame: &mut Frame, area: Rect, editor: &mut Editor) {
-    // Create a centered title
-    let title_text = "✎ Text Editor ✎";
-    let title = create_centered_title(&title_text, area.width);
-    
-    let block = Block::default()
-        .title(title)
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::LightGreen));
-    
-    // Get the inner area for content
-    let inner_area = block.inner(area);
-    frame.render_widget(block, area);
-    
-    // Let the editor render its view directly
-    let editor_view = editor.view();
-    // Use the Widget trait to render the editor view
-    ratatui::widgets::Widget::render(editor_view, inner_area, frame.buffer_mut());
-}
-
 /// Render the editor status line
 fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
-    let modified_text = if editor.is_modified() {
-        "[MODIFIED] | "
+    // Get editor mode
+    let mode = editor.mode();
+    let mode_style = if mode == "NORMAL" {
+        Style::default().fg(Color::Blue)
+    } else if mode == "INSERT" {
+        Style::default().fg(Color::Green)
+    } else if mode == "VISUAL" {
+        Style::default().fg(Color::Yellow)
+    } else if mode == ":" {
+        Style::default().fg(Color::LightRed)
+    } else {
+        Style::default()
+    };
+    
+    // Show modified indicator
+    let modified = if editor.is_modified() {
+        "[MODIFIED] "
     } else {
         ""
     };
     
-    // Get the editor mode to display
-    let mode = editor.mode();
+    // Create status line
+    let status_line = Line::from(vec![
+        Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
+        Span::raw(" | "),
+        Span::raw(modified),
+        Span::raw("?:Help | Ctrl+S:Save | Esc:Cancel | Type to edit")
+    ]);
     
-    // Format status line differently when in command mode vs normal editing
-    let status_text;
-    let status_style;
-    
-    if mode.starts_with(':') {
-        // When typing a command, make it very visible with a special format
-        status_text = Line::from(vec![
-            Span::styled(" COMMAND: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(mode, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-            Span::raw(" | Press Enter to execute | Esc to cancel")
-        ]);
-        status_style = Style::default().bg(Color::DarkGray);
-    } else {
-        // Regular status line (keeping it concise)
-        status_text = Line::from(format!(" ?:Help | [{}] | {}Ctrl+S:Save | Esc:Back", 
-                  mode, modified_text));
-        status_style = Style::default().fg(Color::Reset);
-    };
-    
-    let status = Paragraph::new(status_text)
-        .style(status_style);
+    let status = Paragraph::new(status_line);
     
     frame.render_widget(status, area);
 }
 
-/// UI state serialization for debugging
+/// Render a debug message overlay at the bottom of the screen
+fn render_debug_overlay(frame: &mut Frame, message: &str) {
+    let area = frame.area();
+    
+    // Create a small overlay at the bottom of the screen
+    let debug_area = Rect {
+        x: area.x,
+        y: area.height.saturating_sub(2),
+        width: area.width,
+        height: 1,
+    };
+    
+    // Create a clear widget for the overlay background
+    frame.render_widget(Clear, debug_area);
+    
+    // Create the debug message
+    let debug_message = Paragraph::new(message)
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White))
+        .alignment(ratatui::layout::Alignment::Center);
+    
+    frame.render_widget(debug_message, debug_area);
+}
+
+/// Create a centered title for a block
+fn create_centered_title(title: &str, width: u16) -> ratatui::text::Line {
+    // Calculate padding to center the title
+    let title_width = title.len() as u16;
+    let padding = width.saturating_sub(title_width) / 2;
+    let padding_str = " ".repeat(padding as usize);
+    
+    // Create a Line with the padded title
+    Line::from(format!("{}{}", padding_str, title))
+}
+
+/// Create a title with a left element and a right-aligned element
+fn create_title_with_right_element<'a>(left: &'a str, right: &'a str, width: u16) -> ratatui::text::Line<'a> {
+    // Calculate the space needed
+    let title_width = left.len() as u16;
+    let right_width = right.len() as u16;
+    
+    // Create a vector of spans for the title
+    let mut spans = Vec::new();
+    
+    // Add the left element
+    spans.push(Span::raw(left));
+    
+    // Calculate padding to push the right element to the right edge
+    let available_space = width.saturating_sub(title_width).saturating_sub(right_width);
+    if available_space > 0 {
+        spans.push(Span::raw(" ".repeat(available_space as usize)));
+    }
+    
+    // Add the right element with appropriate styling based on content
+    let right_style = if right.contains("OVER LIMIT") {
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+    } else if right.contains("TOKENS:") {
+        // Extract percentage from the string
+        if let Some(percent_str) = right.split('(').nth(1).and_then(|s| s.split('%').next()) {
+            if let Ok(percent) = percent_str.trim().parse::<f64>() {
+                if percent >= 90.0 {
+                    Style::default().fg(Color::LightRed)
+                } else if percent >= 75.0 {
+                    Style::default().fg(Color::Yellow)
+                } else if percent >= 50.0 {
+                    Style::default().fg(Color::Green)
+                } else {
+                    Style::default().fg(Color::Blue)
+                }
+            } else {
+                Style::default().fg(Color::Blue)
+            }
+        } else {
+            Style::default().fg(Color::Blue)
+        }
+    } else {
+        Style::default().fg(Color::Blue)
+    };
+    
+    spans.push(Span::styled(right, right_style));
+    
+    // Create a Line with the spans
+    Line::from(spans)
+}
+
+/// UI serializer for debug output
 pub struct UiSerializer;
 
 impl UiSerializer {
@@ -623,21 +632,35 @@ impl UiSerializer {
         writeln!(&mut output, "Show Help: {}", state.show_help).unwrap();
         writeln!(&mut output, "").unwrap();
         
-        // Current directory
-        writeln!(&mut output, "Current Directory: {:?}", explorer.current_path()).unwrap();
+        // Explorer state
+        writeln!(&mut output, "Explorer State:").unwrap();
+        writeln!(&mut output, "---------------").unwrap();
+        writeln!(&mut output, "Current Directory: {}", explorer.current_path().display()).unwrap();
+        writeln!(&mut output, "Root Directory: {}", explorer.root_dir().display()).unwrap();
+        writeln!(&mut output, "Selected Index: {}", explorer.selected_index()).unwrap();
         writeln!(&mut output, "").unwrap();
         
-        // Directory entries
+        // Entries
         writeln!(&mut output, "Directory Entries:").unwrap();
-        writeln!(&mut output, "==================").unwrap();
+        writeln!(&mut output, "-----------------").unwrap();
         for (i, entry) in explorer.entries().iter().enumerate() {
-            let selected = if i == explorer.selected_index() { " -> " } else { "    " };
-            let entry_type = if entry.is_dir { "[DIR] " } else { "[FILE]" };
-            writeln!(&mut output, "{}{} {}", selected, entry_type, entry.name).unwrap();
+            let selected = if i == explorer.selected_index() { " [SELECTED]" } else { "" };
+            let chunking = if entry.chunking_progress > 0.0 { 
+                format!(" [CHUNKED: {:.1}%]", entry.chunking_progress) 
+            } else { 
+                "".to_string() 
+            };
+            
+            writeln!(&mut output, "{}{}  {}{}", 
+                if entry.is_dir { "📁" } else { "📄" },
+                selected,
+                entry.name,
+                chunking
+            ).unwrap();
         }
         writeln!(&mut output, "").unwrap();
         
-        // Status
+        // Status line
         writeln!(&mut output, "Status Line:").unwrap();
         writeln!(&mut output, "------------").unwrap();
         writeln!(&mut output, "?:Help | q/Esc:Quit | ↑↓/kj:Nav | PgUp/Dn:Page | Enter/→:Open | ←:Back").unwrap();
@@ -663,13 +686,11 @@ impl UiSerializer {
         writeln!(&mut output, "Show Help: {}", state.show_help).unwrap();
         writeln!(&mut output, "").unwrap();
         
-        // File info
-        writeln!(&mut output, "Viewing File: {:?}", viewer.file_path()).unwrap();
-        writeln!(&mut output, "").unwrap();
-        
-        // Selection info
-        writeln!(&mut output, "Selection Status:").unwrap();
-        writeln!(&mut output, "================").unwrap();
+        // Viewer state
+        writeln!(&mut output, "Viewer State:").unwrap();
+        writeln!(&mut output, "-------------").unwrap();
+        writeln!(&mut output, "File: {:?}", viewer.file_path()).unwrap();
+        writeln!(&mut output, "Scroll Position: Line {}", viewer.scroll_position() + 1).unwrap();
         writeln!(&mut output, "Selection Mode: {}", if viewer.is_selection_mode() { "ACTIVE" } else { "INACTIVE" }).unwrap();
         
         if let Some((start, end)) = viewer.selection_range() {
@@ -729,6 +750,20 @@ impl UiSerializer {
         
         writeln!(&mut output, "?:Help | Space:Toggle Selection | {} q/Esc:Back | ↑↓/kj:Move | PgUp/Dn:Page | Home/End:Jump", 
             selection_info).unwrap();
+        writeln!(&mut output, "").unwrap();
+        
+        // Token information
+        writeln!(&mut output, "Token Information:").unwrap();
+        writeln!(&mut output, "------------------").unwrap();
+        writeln!(&mut output, "Total tokens in file: {}", viewer.total_token_count()).unwrap();
+        if let Some(count) = viewer.selection_token_count() {
+            let percentage = (count as f64 / viewer.max_tokens_per_chunk() as f64) * 100.0;
+            writeln!(&mut output, "Selection tokens: {} ({:.1}% of limit {})", 
+                count, percentage, viewer.max_tokens_per_chunk()).unwrap();
+            if percentage > 100.0 {
+                writeln!(&mut output, "WARNING: Selection exceeds token limit!").unwrap();
+            }
+        }
         writeln!(&mut output, "").unwrap();
         
         // Debug info

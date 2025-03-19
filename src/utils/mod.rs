@@ -3,8 +3,12 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::Write;
 use anyhow::{Result, Context};
+
+// Sub-modules
+pub mod tokenizer;
+pub use tokenizer::*;
 
 /// Truncate a string to a maximum length, adding ellipsis if truncated
 pub fn truncate_string(s: &str, max_len: usize) -> String {

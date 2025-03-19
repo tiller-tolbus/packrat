@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use crate::utils::generate_chunk_filename;
+use crate::utils::{generate_chunk_filename, count_tokens, count_tokens_in_lines, format_token_count};
 
 /// Text viewer component
 pub struct Viewer {
@@ -24,6 +24,12 @@ pub struct Viewer {
     chunked_ranges: Vec<(usize, usize)>,
     /// Whether the current selection contains edited content
     has_edited_content: bool,
+    /// Total token count for the entire file
+    total_tokens: usize,
+    /// Token counts per line
+    tokens_per_line: Vec<usize>,
+    /// Maximum tokens allowed per chunk (configurable)
+    max_tokens_per_chunk: usize,
 }
 
 impl Viewer {
@@ -39,7 +45,20 @@ impl Viewer {
             cursor_position: 0,
             chunked_ranges: Vec::new(),
             has_edited_content: false,
+            total_tokens: 0,
+            tokens_per_line: Vec::new(),
+            max_tokens_per_chunk: 8192, // Default max tokens (configurable)
         }
+    }
+    
+    /// Set the maximum tokens per chunk
+    pub fn set_max_tokens_per_chunk(&mut self, max_tokens: usize) {
+        self.max_tokens_per_chunk = max_tokens;
+    }
+    
+    /// Get the maximum tokens per chunk
+    pub fn max_tokens_per_chunk(&self) -> usize {
+        self.max_tokens_per_chunk
     }
     
     /// Open a file in the viewer
@@ -70,12 +89,27 @@ impl Viewer {
         self.chunked_ranges = Vec::new();
         self.has_edited_content = false;
         
+        // Count tokens
+        self.update_token_counts();
+        
         // Load existing chunks for this file if any exist
         // Note: This is a placeholder - to fully implement this would require passing the chunk_dir
         // as a parameter to open_file, which would require changing the method signature.
         // For now, we'll leave it as a placeholder.
         
         Ok(())
+    }
+    
+    /// Update token counts for the entire file and per line
+    fn update_token_counts(&mut self) {
+        // Count tokens for the whole file
+        self.total_tokens = count_tokens_in_lines(&self.content);
+        
+        // Count tokens per line
+        self.tokens_per_line = Vec::with_capacity(self.content.len());
+        for line in &self.content {
+            self.tokens_per_line.push(count_tokens(line));
+        }
     }
     
     /// Toggle selection mode
@@ -113,6 +147,51 @@ impl Viewer {
                 (end, start)
             }
         })
+    }
+    
+    /// Get token count for the current selection
+    pub fn selection_token_count(&self) -> Option<usize> {
+        self.selection_range().map(|(start, end)| {
+            if start >= self.content.len() || end >= self.content.len() {
+                0
+            } else {
+                let selected_lines = &self.content[start..=end];
+                count_tokens_in_lines(selected_lines)
+            }
+        })
+    }
+    
+    /// Check if the current selection exceeds the token limit
+    pub fn selection_exceeds_token_limit(&self) -> bool {
+        if let Some(token_count) = self.selection_token_count() {
+            token_count > self.max_tokens_per_chunk
+        } else {
+            false
+        }
+    }
+    
+    /// Get token count for the entire file
+    pub fn total_token_count(&self) -> usize {
+        self.total_tokens
+    }
+    
+    /// Get a formatted string with token count for the current selection
+    pub fn formatted_selection_token_count(&self) -> String {
+        if let Some(count) = self.selection_token_count() {
+            let percentage = if self.max_tokens_per_chunk > 0 {
+                (count as f64 / self.max_tokens_per_chunk as f64) * 100.0
+            } else {
+                0.0
+            };
+            
+            if percentage > 100.0 {
+                format!("{} ({}% OVER LIMIT!)", format_token_count(count), percentage as usize)
+            } else {
+                format!("{} ({}%)", format_token_count(count), percentage as usize)
+            }
+        } else {
+            "No selection".to_string()
+        }
     }
     
     /// Clear the current selection
@@ -272,14 +351,15 @@ impl Viewer {
         }
         
         // Check for overlap with existing chunks
-        let has_overlap = self.check_chunk_overlap(range.0, range.1);
+        let _has_overlap = self.check_chunk_overlap(range.0, range.1);
         
         // Extract the lines from the current in-memory content (which may have been edited)
         let selected_content = &self.content[range.0..=range.1];
         
         // Create chunk filename
         let file_path = self.file_path().ok_or_else(|| anyhow!("No file opened"))?;
-        let relative_path = if file_path.starts_with(root_dir) {
+        // We don't use this value directly, only for creating chunk filename through the helper
+        let _relative_path = if file_path.starts_with(root_dir) {
             match file_path.strip_prefix(root_dir) {
                 Ok(rel_path) => rel_path.to_path_buf(),
                 Err(_) => file_path.to_path_buf(),
@@ -289,7 +369,7 @@ impl Viewer {
         };
         
         // Check if content has been edited
-        let was_edited = self.has_edited_content;
+        let _was_edited = self.has_edited_content;
         
         // Everything we need is in the filename - no need for separate metadata
         
