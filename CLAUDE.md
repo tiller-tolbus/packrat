@@ -17,12 +17,12 @@ Instead, write test cases for the things you want to handle, or let the user try
 This project is a terminal user interface (TUI) application for interactively chunking text files. The tool lets users split large text files into smaller chunks by selecting text in a console UI and saving those selections as separate files. It provides a file explorer and text viewer with visual cues to track chunking progress. Key user stories and requirements include:
 
 - **File Navigation**: A user can navigate through files and directories in a file explorer, restricted to a given root directory (chroot mode) to prevent leaving the allowed path.
-- **Progress Highlighting**: The explorer indicates each file’s chunking progress with color highlights – partially chunked files in yellow, mostly chunked in orange, and fully chunked in green for quick visual status.
+- **Progress Highlighting**: The explorer indicates each file's chunking progress with color highlights – partially chunked files in yellow, mostly chunked in orange, and fully chunked in green for quick visual status.
 - **Text Viewing**: A user can open a selected text file in a viewer pane and scroll through its content (using keyboard arrows/Vim keys for up/down, or other typical scrolling keys).
 - **Text Selection**: A user can toggle selection mode by pressing **Space**; when selection mode is active, moving the cursor up or down highlights the selected lines to be chunked.  
 - **Save Chunks**: Pressing `S` will save the currently highlighted lines as a chunk file in a designated storage directory. Each saved chunk is written to disk persistently.
-- **Highlight Saved Chunks**: Once saved, the chunked lines in the viewer are highlighted (e.g., in orange) to indicate they have been chunked. This helps avoid re-selecting the same text. The file’s entry in the explorer also updates its color if the new chunk changes its overall chunking status.
-- **Undo Last Chunk**: Pressing `R` removes the last saved chunk (an undo feature for one step). The chunk file is deleted, and the file’s highlights/progress are updated. (As a stretch goal, pressing `Shift+R` could redo the removed chunk.)
+- **Highlight Saved Chunks**: Once saved, the chunked lines in the viewer are highlighted (e.g., in orange) to indicate they have been chunked. This helps avoid re-selecting the same text. The file's entry in the explorer also updates its color if the new chunk changes its overall chunking status.
+- **Undo Last Chunk**: Pressing `R` removes the last saved chunk (an undo feature for one step). The chunk file is deleted, and the file's highlights/progress are updated. (As a stretch goal, pressing `Shift+R` could redo the removed chunk.)
 - **Real-time Updates**: The application watches the filesystem in real time. If chunk files or source files are added, removed, or changed outside the application, it detects these changes and updates the UI highlights and file list immediately.
 - **Configurable Settings**: A configuration allows setting the chunk storage directory path and a maximum chunk size. Stretch goals: make keybindings (like the keys for save/undo) and color schemes configurable to suit user preferences.
 
@@ -30,7 +30,7 @@ This project is a terminal user interface (TUI) application for interactively ch
 
 # Development Phases
 
-## Phase 1: File Explorer UI
+## Phase 1: File Explorer UI (Completed)
 
 **Description**  
 Implement the file explorer interface. This includes displaying a list of files/folders under the given root directory and allowing the user to navigate this list using the keyboard (with Vim-style or arrow keys). The explorer must enforce chroot mode, meaning navigation is confined to the specified root – the user should not be able to go to parent directories above the root. This phase establishes basic navigation without yet opening files.
@@ -50,38 +50,25 @@ Implement the file explorer interface. This includes displaying a list of files/
   - If a file is selected, pressing `Enter` should trigger Phase 2 (opening the file in the text viewer).
 - Dynamic file list: It will later reflect highlighting based on chunks but can display all items in a neutral color for now.
 
-**Test Cases**  
-- Navigate up and down the list and ensure correct selection movement.  
-- Attempt to navigate above the root directory and verify it remains within bounds.  
-- Enter a subdirectory and then navigate back to root.  
-- Verify that files vs directories are indicated properly.  
-- Select a file and press `Enter` to confirm it registers the file-open action (stubbed for Phase 2).
-
 ---
 
-## Phase 2: Text Viewer & Scrolling
+## Phase 2: Text Viewer & Scrolling (Completed)
 
 **Description**  
 Implement the text viewer pane that opens when a user selects a file from the explorer. In this phase, the user can view the contents of the text file and scroll through it.
 
 **Technical Implementation Details**  
 - When a file-open action is triggered, a full-screen text viewer.
-- Read the file’s content from disk and display it.
+- Read the file's content from disk and display it.
 - Implement vertical scrolling:
   - `Up/Down` arrow (`K/J` in Vim) for line-by-line scrolling.
   - `PageUp/PageDown` for fast scrolling.
   - `Home/End` to jump to start or end.
 - Allow exiting the text viewer with `Q`.
 
-**Test Cases**  
-- Open a known text file and verify displayed content.  
-- Scroll through the file and confirm expected behavior.  
-- Test boundary conditions (no over-scrolling).  
-- Exit and re-enter the viewer to verify correct state persistence.
-
 ---
 
-## Phase 3: Line-Based Text Selection & Highlighting
+## Phase 3: Line-Based Text Selection & Highlighting (Completed)
 
 **Description**  
 Enhance the text viewer to allow selecting contiguous lines of text by toggling a selection mode via **Space**. When selection mode is active, moving the cursor up or down (via arrow keys or Vim-style keys) highlights the lines to be chunked. Pressing **Space** again exits selection mode.
@@ -93,33 +80,35 @@ Enhance the text viewer to allow selecting contiguous lines of text by toggling 
 - Once the user exits selection mode or performs another action, the highlighted region remains as the current selection.
 - Selections should clear when a new selection starts or when certain actions are performed (e.g., saving a chunk).
 
-**Test Cases** 
-- Press **Space** to activate selection mode, move the cursor to highlight multiple lines, then press **Space** again to finalize selection.  
-- Verify the highlight accurately represents the selected lines.  
-- Ensure the selection is reset or cleared appropriately when needed.  
-- Confirm multi-line and single-line selection both function as intended.
-
 ---
 
-## Phase 3.5: Integrated Text Editing (Optional)
+## Phase 3.5: Vim-like Text Editing
 
 **Description**  
-Add an intermediate editing step for selected lines using a third “editor view” powered by the tui-textarea. If a user has a selection of text, pressing **E** takes them into this editor view, where they can modify the content before finalizing it as a chunk.
+Replace the basic tui-textarea implementation with EdTUI to provide a more powerful Vim-like editing experience. EdTUI offers modal editing (Normal, Insert, Visual) that better aligns with the project's use of Vim-style keybindings throughout the application.
 
 **Technical Implementation Details**  
-- Detect when the user presses **E** and there is an active selection of lines.
-- Transition to a new TUI “editor view,” which uses the tui-textarea crate.
-- Allow the user to edit the selected text in a more fine-grained way.
-- After editing, the user can save changes and return to the main viewer, with the updated text ready to be chunked.
+- Integrate the EdTUI crate to replace tui-textarea
+- Implement proper modal editing:
+  - Normal mode for navigation and commands
+  - Insert mode for text modification
+  - Visual mode for selecting text
+- Maintain the edit workflow where 'E' opens selected text in the editor
+- Ensure edited content is properly saved with chunks
+- Update keybinding documentation to reflect Vim commands
+- Maintain the separation between viewing and editing modes
 
 **Test Cases**  
-- Select some lines in the text viewer, press **E**, and confirm it opens the text editor view.  
-- Make edits and return to the viewer; verify that the selected text is now updated to reflect those edits.  
-- Attempt to press **E** with no selection and confirm it prevents entering the editor view or shows an error.
+- Verify that all Vim modes (Normal, Insert, Visual) work correctly
+- Test common Vim commands in each mode (navigation, editing, selection)
+- Confirm proper transfer of content between viewer and editor
+- Ensure edited content is properly saved in chunk files
+- Test boundary conditions for selection and editing
+- Verify no original files are modified during editing operations
 
 ---
 
-## Phase 4: Chunk Saving & Tracking
+## Phase 4: Chunk Saving & Tracking (In Progress)
 
 **Description**  
 Allow users to save selected lines (with or without optional edits from Phase 3.5) as a chunk to disk.
@@ -131,10 +120,11 @@ Allow users to save selected lines (with or without optional edits from Phase 3.
   - Highlight saved lines in orange.
   - Update file explorer color-coding based on chunk progress.
 
-**Test Cases**  
-- Ensure saved chunks are written to disk correctly.  
-- Verify that chunked lines are highlighted.  
-- Check that file explorer updates chunking progress colors.
+**Implementation Status**
+- Basic chunking functionality is implemented
+- Chunk filename scheme is working correctly
+- Need to implement saving edited content instead of original content
+- Need to add chunk metadata tracking and UI updates
 
 ---
 
@@ -144,13 +134,9 @@ Allow users to save selected lines (with or without optional edits from Phase 3.
 Detect external changes (e.g., chunk file deletion/addition) and update the UI dynamically.
 
 **Technical Implementation Details**  
-- Use Rust’s `Notify` crate to monitor directories.
+- Use Rust's `Notify` crate to monitor directories.
 - Detect and reflect changes in chunk storage.
 - Refresh UI dynamically without requiring a restart.
-
-**Test Cases**  
-- Add/remove files externally and verify real-time updates.  
-- Manually delete a chunk file and confirm UI updates correctly.
 
 ---
 
@@ -164,17 +150,12 @@ Allow users to undo (`R`) the last chunk save and optionally redo (`Shift+R`).
 - On `R`, remove the chunk file and update the UI.
 - On `Shift+R`, restore the last undone chunk.
 
-**Test Cases**  
-- Undo a saved chunk and verify it disappears (highlight changes and chunk file is removed).  
-- Redo an undone chunk and ensure it is restored correctly.  
-- Ensure undo/redo logic prevents unintended redoing of old actions.
-
 ---
 
 ## Phase 7: Polish & Further Stretch Goals
 
 **Description**  
-Refine the user experience, add customization options, improve performance, and consider additional features. Continue building on the line-based selection and optional editor approach.
+Refine the user experience, add customization options, improve performance, and consider additional features.
 
 **Technical Implementation Details**  
 - Support configuration files (`TOML`, `YAML`) for custom settings such as chunk directory, keybindings, and color themes.
@@ -182,14 +163,35 @@ Refine the user experience, add customization options, improve performance, and 
 - Optimize performance for large files.
 - Consider expansions to the editor view or improved selection heuristics.
 
-**Test Cases**  
-- Validate config file settings (e.g., custom chunk directory).  
-- Ensure error handling for permission issues.  
-- Confirm UI layout remains stable on window resizing.  
-- If further editor expansions are implemented, test additional editing scenarios.
-
 ---
 
-# Conclusion
+# Library Notes
 
-By dividing the feature set into phases, we can iteratively develop a robust TUI text chunking application. Core functionality includes file navigation, line-based selection, saving selected lines as chunks, real-time file monitoring, and an optional integrated text editor. The final product will address common use cases for chunking large text files while providing room for more refined editing where needed.
+## Text Editing Implementation
+
+After research, EdTUI has been identified as the preferred library for the text editing component:
+
+- **EdTUI**: A Vim-inspired editor widget for Ratatui with modal editing
+  - Provides Normal/Insert/Visual modes out of the box
+  - Supports common Vim commands and motions (h/j/k/l, w/e/b, dd, y/p, etc.)
+  - Includes helpful features like line numbers, syntax highlighting, search
+  - MIT licensed and actively maintained
+  - Direct integration with Ratatui/Crossterm
+  
+This will replace the current tui-textarea implementation to provide a more powerful and familiar editing experience for users accustomed to Vim.
+
+## Implementation Strategy
+
+1. Add EdTUI dependency to Cargo.toml
+2. Create a new implementation of the Editor component using EdTUI
+3. Update the app event handling to work with EdTUI's modes and commands
+4. Ensure proper content transfer between viewer and editor
+5. Implement saving of edited content when chunking
+
+## Testing Strategy
+
+Create comprehensive tests for:
+- Modal editing functionality
+- Content transfer between components
+- File safety (ensuring no modification of original files)
+- Integration with chunking workflow

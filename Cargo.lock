@@ -841,6 +841,8 @@ dependencies = [
  "edtui",
  "notify",
  "ratatui",
+ "serde",
+ "serde_json",
  "tempfile",
  "walkdir",
 ]

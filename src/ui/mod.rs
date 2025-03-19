@@ -90,17 +90,50 @@ fn render_explorer_content(frame: &mut Frame, area: Rect, explorer: &Explorer) {
         .entries()
         .iter()
         .map(|entry| {
-            // Use cleaner Unicode symbols for folders and files
-            let (symbol, color) = if entry.is_dir {
-                ("▶ ", Color::Cyan)
+            // Use different colors based on directory or file status
+            let (symbol, name_style) = if entry.is_dir {
+                ("▶ ", Style::default().fg(Color::Cyan))
             } else {
-                ("■ ", Color::White)
+                // For files, color based on chunking progress
+                let progress = entry.chunking_progress;
+                let name_style = if progress >= 99.0 {
+                    // Fully chunked - green background
+                    Style::default().bg(Color::Green).fg(Color::Black)
+                } else if progress >= 66.0 {
+                    // Mostly chunked - orange background
+                    Style::default().bg(Color::LightRed).fg(Color::Black)
+                } else if progress >= 33.0 {
+                    // Partially chunked - yellow background
+                    Style::default().bg(Color::Yellow).fg(Color::Black)
+                } else if progress > 0.0 {
+                    // Minimally chunked - dim yellow background
+                    Style::default().bg(Color::LightYellow).fg(Color::Black)
+                } else {
+                    // Not chunked - default terminal colors
+                    Style::default()
+                };
+                
+                ("■ ", name_style)
             };
             
-            ListItem::new(Line::from(vec![
-                Span::styled(symbol, Style::default().fg(color)),
-                Span::raw(&entry.name)
-            ]))
+            // Add progress indicator for files with non-zero progress
+            let content = if !entry.is_dir && entry.chunking_progress > 0.0 {
+                vec![
+                    Span::styled(symbol, Style::default()),
+                    Span::styled(&entry.name, name_style),
+                    Span::styled(
+                        format!(" [{:.0}%]", entry.chunking_progress), 
+                        Style::default().fg(Color::DarkGray)
+                    )
+                ]
+            } else {
+                vec![
+                    Span::styled(symbol, Style::default()),
+                    Span::styled(&entry.name, name_style)
+                ]
+            };
+            
+            ListItem::new(Line::from(content))
         })
         .collect();
     
@@ -131,14 +164,37 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     let file_name = viewer.file_path()
         .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string())
         .unwrap_or_else(|| "Unknown File".to_string());
-        
+    
+    // Add chunking status to title
+    let chunking_percent = viewer.chunking_percentage();
+    let title_text = if chunking_percent > 0.0 {
+        format!("⊡ {} [{:.1}% Chunked]", file_name, chunking_percent)
+    } else {
+        format!("⊡ {}", file_name)
+    };
+    
     // Create a centered title
-    let title_text = format!("⊡ {}", file_name);
     let title = create_centered_title(&title_text, area.width);
+    
+    // Set border color based on chunking progress
+    let border_style = if chunking_percent >= 99.0 {
+        // Fully chunked - green
+        Style::default().fg(Color::Green)
+    } else if chunking_percent >= 66.0 {
+        // Mostly chunked - orange
+        Style::default().fg(Color::LightRed)
+    } else if chunking_percent > 0.0 {
+        // Partially chunked - yellow
+        Style::default().fg(Color::Yellow)
+    } else {
+        // Not chunked - normal border
+        Style::default()
+    };
     
     let block = Block::default()
         .title(title)
-        .borders(Borders::ALL);
+        .borders(Borders::ALL)
+        .border_style(border_style);
     
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
@@ -153,6 +209,8 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     // Determine cursor position relative to the visible area
     let cursor_position = viewer.cursor_position();
     let scroll_position = viewer.scroll_position();
+    
+    // Get current cursor and scroll information
     
     // Create text content for the paragraph with selection highlighting
     let content: Vec<Line> = visible_content
@@ -171,12 +229,19 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
             let style = if is_selected {
                 Style::default().bg(Color::Yellow).fg(Color::Black)
             } else if viewer.is_line_chunked(line_position) {
-                Style::default().bg(Color::DarkGray).fg(Color::Yellow)
+                // Use yellow highlight for chunked lines
+                Style::default().bg(Color::Yellow).fg(Color::Black)
             } else {
                 Style::default().fg(Color::Reset)
             };
             
-            // Create the line with proper styling and cursor if needed
+            // Display text should now always be non-empty because we handled empty lines
+            // in the visible_content method
+            let display_text = line.as_str();
+            
+            // Create the line's content span
+            let content_span = Span::styled(display_text, style);
+            
             if is_cursor_line {
                 // Use different cursor styles based on mode
                 let (cursor_symbol, cursor_style) = if viewer.is_selection_mode() {
@@ -187,12 +252,13 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
                 
                 Line::from(vec![
                     Span::styled(format!("{} ", cursor_symbol), cursor_style),
-                    Span::styled(line.as_str(), style)
+                    content_span
                 ])
             } else {
+                // Non-cursor lines
                 Line::from(vec![
                     Span::raw("  "), // Space where cursor would be
-                    Span::styled(line.as_str(), style)
+                    content_span
                 ])
             }
         })
@@ -226,18 +292,38 @@ fn render_viewer_status(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         }
     };
     
-    // Add chunking percentage if any chunks exist
-    let chunk_info = if viewer.chunking_percentage() > 0.0 {
-        format!("{:.1}% CHUNKED | ", viewer.chunking_percentage())
+    // Add chunking percentage with color based on progress if any chunks exist
+    let chunking_percent = viewer.chunking_percentage();
+    let (chunk_info, chunk_style) = if chunking_percent > 0.0 {
+        // Choose color based on chunking percentage
+        let chunk_style = if chunking_percent >= 99.0 {
+            // Fully chunked - green
+            Style::default().fg(Color::Green)
+        } else if chunking_percent >= 66.0 {
+            // Mostly chunked - orange
+            Style::default().fg(Color::LightRed)
+        } else {
+            // Partially chunked - yellow
+            Style::default().fg(Color::Yellow)
+        };
+        
+        (format!("{:.1}% CHUNKED | ", chunking_percent), chunk_style)
     } else {
-        "".to_string()
+        ("".to_string(), Style::default().fg(Color::Reset))
     };
     
-    let status_text = format!(" ?:Help | Space:Toggle Selection | s:Save Chunk | {}{} q/Esc:Back | ↑↓/kj:Move", 
-        chunk_info, selection_info);
+    // Create status line with color for chunking percentage
+    let status_line = if chunk_info.is_empty() {
+        Line::from(format!(" ?:Help | Space:Toggle Selection | s:Save Chunk | {} q/Esc:Back | ↑↓/kj:Move", selection_info))
+    } else {
+        Line::from(vec![
+            Span::raw(" ?:Help | Space:Toggle Selection | s:Save Chunk | "),
+            Span::styled(chunk_info, chunk_style),
+            Span::raw(format!("{} q/Esc:Back | ↑↓/kj:Move", selection_info))
+        ])
+    };
     
-    let status = Paragraph::new(status_text)
-        .style(Style::default().fg(Color::Reset));
+    let status = Paragraph::new(status_line);
     
     frame.render_widget(status, area);
 }
@@ -298,6 +384,7 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
                     Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD))
                 ]),
                 Line::from("  ↑/k, ↓/j        Move cursor up/down"),
+                Line::from("  Shift+↑/k, Shift+↓/j  Fast scroll (5 lines at a time)"),
                 Line::from("  PgUp, PgDn      Page up/down"),
                 Line::from("  Home, End       Jump to top/bottom"),
                 Line::from(""),

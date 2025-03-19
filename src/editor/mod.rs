@@ -206,7 +206,14 @@ impl Editor {
     
     /// Process a command entered in command mode (after typing ":")
     fn process_command(&mut self, command: &str) -> bool {
-        match command.trim_start_matches(':') {
+        // Trim any leading colon
+        let cmd = command.trim_start_matches(':');
+        
+        // Parse command components (command and arguments)
+        let mut parts = cmd.split_whitespace();
+        let cmd_name = parts.next().unwrap_or("");
+        
+        match cmd_name {
             // :q - Quit without saving
             "q" => {
                 // If there are unsaved changes, don't quit
@@ -225,9 +232,10 @@ impl Editor {
                 return false;
             },
             
-            // :w - Write (in our case, does nothing since we don't write until exit)
+            // :w - Write (mark as saved)
             "w" => {
                 // This would normally save the file, but we're not directly writing files
+                // Instead, we just mark the content as no longer modified
                 self.modified = false;
                 return true;
             },
@@ -236,6 +244,63 @@ impl Editor {
             "wq" | "x" => {
                 // Signal app to save and exit
                 return false;
+            },
+            
+            // :set - Set options (supporting a subset of Vim's :set commands)
+            "set" => {
+                // Get the option(s) to set
+                let options = parts.collect::<Vec<&str>>();
+                for opt in options {
+                    match opt {
+                        // Common Vim settings that users might try
+                        "number" | "nu" => {
+                            // Already enabled by default in EdTUI, but would handle here
+                        },
+                        "nonumber" | "nonu" => {
+                            // Would disable line numbers if implemented
+                        },
+                        "wrap" => {
+                            // Already enabled by default, but would handle here
+                        },
+                        "nowrap" => {
+                            // Would disable wrapping if implemented
+                        },
+                        _ => {
+                            // Ignore unknown settings
+                        }
+                    }
+                }
+                return true;
+            },
+            
+            // :e - Edit file (not supported in our implementation)
+            "e" | "edit" => {
+                // We don't support file operations, but handle the command gracefully
+                return true;
+            },
+            
+            // :split, :vsplit - Split window (not supported)
+            "sp" | "split" | "vs" | "vsplit" => {
+                // We don't support splits, but handle gracefully
+                return true;
+            },
+            
+            // :h, :help - Show help (would show help in a real Vim)
+            "h" | "help" => {
+                // We'd show help if implemented
+                return true;
+            },
+            
+            // :syntax - Syntax highlighting (not fully implemented)
+            "syntax" => {
+                // We would handle syntax highlighting settings here
+                return true;
+            },
+            
+            // :%s - Substitution (not implemented but commonly used)
+            "s" | "%s" => {
+                // We'd implement substitutions here
+                return true;
             },
             
             // Unknown command - would normally show an error in Vim

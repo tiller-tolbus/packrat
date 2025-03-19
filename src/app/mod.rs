@@ -50,7 +50,7 @@ impl App {
         // Create app components
         let state = AppState::default();
         let events = EventHandler::new(Duration::from_millis(100));
-        let explorer = Explorer::new(".")?; // Start in current directory
+        let mut explorer = Explorer::new(".")?; // Start in current directory
         let viewer = Viewer::new();
         let editor = Editor::new();
         let config = Config::default();
@@ -59,6 +59,11 @@ impl App {
         if config.enable_debug {
             fs::create_dir_all(&config.debug_dir)
                 .with_context(|| format!("Failed to create debug directory: {:?}", config.debug_dir))?;
+        }
+        
+        // Initialize chunking progress for files in the explorer
+        if let Err(e) = explorer.init_chunking_progress(&config.chunk_dir) {
+            eprintln!("Warning: Failed to initialize chunking progress: {}", e);
         }
 
         Ok(Self {
@@ -224,6 +229,11 @@ impl App {
                     if let Err(e) = self.viewer.open_file(&selected.path) {
                         eprintln!("Error opening file: {}", e);
                     } else {
+                        // Load any existing chunk data
+                        if let Err(e) = self.viewer.load_chunked_ranges(&self.config.chunk_dir, &self.explorer.root_dir()) {
+                            self.state.set_debug_message(format!("Error loading chunks: {}", e), 3);
+                        }
+                        
                         // Switch to viewer mode
                         self.state.mode = AppMode::Viewer;
                     }
@@ -295,18 +305,43 @@ impl App {
             // Save chunk with 'S' key
             KeyCode::Char('s') => {
                 // Only save if there's a selection
-                if let Some(_) = self.viewer.selection_range() {
+                if let Some((start, end)) = self.viewer.selection_range() {
+                    // Check for overlap with existing chunks
+                    let has_overlap = self.viewer.check_chunk_overlap(start, end);
+                    
+                    // If there's an overlap, warn the user but proceed
+                    if has_overlap {
+                        self.state.set_debug_message(
+                            "Warning: Selected text overlaps with existing chunks".to_string(), 
+                            2
+                        );
+                    }
+                    
                     // Ensure chunks directory exists
                     match self.viewer.save_selection_as_chunk(&self.config.chunk_dir, &self.explorer.root_dir()) {
                         Ok(path) => {
                             // Clear selection after saving
                             self.viewer.clear_selection();
                             let percent = self.viewer.chunking_percentage();
-                            self.state.set_debug_message(
-                                format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                         path.display(), percent), 
-                                3
-                            );
+                            
+                            // Update the explorer chunking progress
+                            if let Some(file_path) = self.viewer.file_path() {
+                                self.explorer.update_chunking_progress(file_path, percent);
+                            }
+                            
+                            if has_overlap {
+                                self.state.set_debug_message(
+                                    format!("Chunk saved with overlaps to: {} ({:.1}% chunked)", 
+                                             path.display(), percent), 
+                                    3
+                                );
+                            } else {
+                                self.state.set_debug_message(
+                                    format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                             path.display(), percent), 
+                                    3
+                                );
+                            }
                         },
                         Err(e) => {
                             self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
@@ -318,8 +353,26 @@ impl App {
             },
             
             // Line-based cursor movement
-            KeyCode::Up | KeyCode::Char('k') => self.viewer.cursor_up(),
-            KeyCode::Down | KeyCode::Char('j') => self.viewer.cursor_down(),
+            KeyCode::Up | KeyCode::Char('k') => {
+                if event.modifiers.contains(event::KeyModifiers::SHIFT) {
+                    // Fast scroll - move 5 lines at a time
+                    for _ in 0..5 {
+                        self.viewer.cursor_up();
+                    }
+                } else {
+                    self.viewer.cursor_up();
+                }
+            },
+            KeyCode::Down | KeyCode::Char('j') => {
+                if event.modifiers.contains(event::KeyModifiers::SHIFT) {
+                    // Fast scroll - move 5 lines at a time
+                    for _ in 0..5 {
+                        self.viewer.cursor_down();
+                    }
+                } else {
+                    self.viewer.cursor_down();
+                }
+            },
             
             // Page scrolling - keeps cursor in view
             KeyCode::PageUp => {
@@ -365,8 +418,11 @@ impl App {
                         // Get the edited content
                         let edited_content = self.editor.content();
                         
+                        // Check if content was modified
+                        let is_modified = self.editor.is_modified();
+                        
                         // Update viewer with the edited content if a selection exists
-                        if let Some((_start, _end)) = self.viewer.selection_range() {
+                        if let Some((start, end)) = self.viewer.selection_range() {
                             // Replace the selected lines with the edited content
                             if self.viewer.update_selected_content(edited_content) {
                                 // Save the updated content as a chunk
@@ -375,11 +431,25 @@ impl App {
                                         // Clear selection after saving
                                         self.viewer.clear_selection();
                                         let percent = self.viewer.chunking_percentage();
-                                        self.state.set_debug_message(
-                                            format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                                     path.display(), percent), 
-                                            3
-                                        );
+                                        
+                                        // Update the explorer chunking progress
+                                        if let Some(file_path) = self.viewer.file_path() {
+                                            self.explorer.update_chunking_progress(file_path, percent);
+                                        }
+                                        
+                                        if is_modified {
+                                            self.state.set_debug_message(
+                                                format!("Edited content saved to: {} ({:.1}% chunked)", 
+                                                         path.display(), percent), 
+                                                3
+                                            );
+                                        } else {
+                                            self.state.set_debug_message(
+                                                format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                                         path.display(), percent), 
+                                                3
+                                            );
+                                        }
                                     },
                                     Err(e) => {
                                         self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);
@@ -427,8 +497,11 @@ impl App {
                 // Get the edited content
                 let edited_content = self.editor.content();
                 
+                // Reset the modified flag on the editor (to match behavior of :w command)
+                let is_modified = self.editor.is_modified();
+                
                 // Update viewer with the edited content if a selection exists
-                if let Some((_start, _end)) = self.viewer.selection_range() {
+                if let Some((start, end)) = self.viewer.selection_range() {
                     // Replace the selected lines with the edited content
                     if self.viewer.update_selected_content(edited_content) {
                         // Save the updated content as a chunk
@@ -437,11 +510,20 @@ impl App {
                                 // Clear selection after saving
                                 self.viewer.clear_selection();
                                 let percent = self.viewer.chunking_percentage();
-                                self.state.set_debug_message(
-                                    format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                             path.display(), percent), 
-                                    3
-                                );
+                                
+                                if is_modified {
+                                    self.state.set_debug_message(
+                                        format!("Edited content saved to: {} ({:.1}% chunked)", 
+                                                 path.display(), percent), 
+                                        3
+                                    );
+                                } else {
+                                    self.state.set_debug_message(
+                                        format!("Chunk saved to: {} ({:.1}% chunked)", 
+                                                 path.display(), percent), 
+                                        3
+                                    );
+                                }
                             },
                             Err(e) => {
                                 self.state.set_debug_message(format!("Error saving chunk: {}", e), 3);

@@ -10,6 +10,8 @@ pub struct Viewer {
     file_path: Option<PathBuf>,
     /// Content of the current file
     content: Vec<String>,
+    /// Original content of the current file (used to track if content was edited)
+    original_content: Vec<String>,
     /// Current scroll position (line number)
     scroll_position: usize,
     /// Whether selection mode is active
@@ -20,6 +22,8 @@ pub struct Viewer {
     cursor_position: usize,
     /// Ranges of lines that have been chunked (start, end)
     chunked_ranges: Vec<(usize, usize)>,
+    /// Whether the current selection contains edited content
+    has_edited_content: bool,
 }
 
 impl Viewer {
@@ -28,11 +32,13 @@ impl Viewer {
         Self {
             file_path: None,
             content: Vec::new(),
+            original_content: Vec::new(),
             scroll_position: 0,
             selection_mode: false,
             selection_start: None,
             cursor_position: 0,
             chunked_ranges: Vec::new(),
+            has_edited_content: false,
         }
     }
     
@@ -54,13 +60,20 @@ impl Viewer {
         }
         
         // Update viewer state
-        self.file_path = Some(path);
-        self.content = content;
+        self.file_path = Some(path.clone());
+        self.content = content.clone();
+        self.original_content = content;
         self.scroll_position = 0;
         self.cursor_position = 0;
         self.selection_mode = false;
         self.selection_start = None;
         self.chunked_ranges = Vec::new();
+        self.has_edited_content = false;
+        
+        // Load existing chunks for this file if any exist
+        // Note: This is a placeholder - to fully implement this would require passing the chunk_dir
+        // as a parameter to open_file, which would require changing the method signature.
+        // For now, we'll leave it as a placeholder.
         
         Ok(())
     }
@@ -220,7 +233,7 @@ impl Viewer {
     }
     
     /// Get the visible content for display
-    pub fn visible_content(&self, height: usize) -> Vec<&String> {
+    pub fn visible_content(&self, height: usize) -> Vec<String> {
         if self.content.is_empty() {
             return Vec::new();
         }
@@ -229,8 +242,23 @@ impl Viewer {
         let start = self.scroll_position;
         let end = (start + height).min(self.content.len());
         
-        // Return sliced content
-        self.content[start..end].iter().collect()
+        // Return sliced content with special handling for empty lines
+        self.content[start..end].iter().map(|line| {
+            if line.is_empty() {
+                // Replace empty lines with a special marker that won't disappear
+                " ".to_string()  // Single space - will render consistently
+            } else {
+                line.clone()
+            }
+        }).collect()
+    }
+    
+    /// Check if a line is empty or contains only whitespace
+    pub fn is_whitespace_line(&self, line_index: usize) -> bool {
+        if line_index >= self.content.len() {
+            return false;
+        }
+        self.content[line_index].trim().is_empty()
     }
     
     /// Save current selection as a chunk
@@ -243,11 +271,29 @@ impl Viewer {
             return Err(anyhow!("Invalid selection range"));
         }
         
+        // Check for overlap with existing chunks
+        let has_overlap = self.check_chunk_overlap(range.0, range.1);
+        
         // Extract the lines from the current in-memory content (which may have been edited)
         let selected_content = &self.content[range.0..=range.1];
         
         // Create chunk filename
         let file_path = self.file_path().ok_or_else(|| anyhow!("No file opened"))?;
+        let relative_path = if file_path.starts_with(root_dir) {
+            match file_path.strip_prefix(root_dir) {
+                Ok(rel_path) => rel_path.to_path_buf(),
+                Err(_) => file_path.to_path_buf(),
+            }
+        } else {
+            file_path.to_path_buf()
+        };
+        
+        // Check if content has been edited
+        let was_edited = self.has_edited_content;
+        
+        // Everything we need is in the filename - no need for separate metadata
+        
+        // Generate chunk filename
         let chunk_filename = generate_chunk_filename(file_path, root_dir, range.0, range.1);
         let chunk_path = chunk_dir.join(chunk_filename);
         
@@ -260,10 +306,24 @@ impl Viewer {
             writeln!(file, "{}", line)?;
         }
         
+        // We're not using metadata files anymore - the filename contains all we need
+        
         // Add to chunked ranges
         self.chunked_ranges.push(range);
         
+        // Return chunk path and overlap status
         Ok(chunk_path)
+    }
+    
+    /// Check if a range overlaps with existing chunks
+    pub fn check_chunk_overlap(&self, start_line: usize, end_line: usize) -> bool {
+        for (chunk_start, chunk_end) in &self.chunked_ranges {
+            // Check for any overlap
+            if !(end_line < *chunk_start || start_line > *chunk_end) {
+                return true;
+            }
+        }
+        false
     }
     
     /// Check if a line is part of a saved chunk
@@ -276,6 +336,87 @@ impl Viewer {
     /// Get all chunked ranges
     pub fn chunked_ranges(&self) -> &[(usize, usize)] {
         &self.chunked_ranges
+    }
+    
+    /// Load chunked ranges by parsing chunk filenames
+    pub fn load_chunked_ranges(&mut self, chunk_dir: &Path, root_dir: &Path) -> Result<()> {
+        // Only proceed if we have a file path
+        let file_path = match &self.file_path {
+            Some(path) => path.clone(),
+            None => return Ok(()),
+        };
+        
+        // Clear existing ranges
+        self.chunked_ranges.clear();
+        
+        // Exit early if chunk directory doesn't exist
+        if !chunk_dir.exists() {
+            return Ok(());
+        }
+        
+        // Generate the file prefix we're looking for
+        // First convert the path to be relative to the root
+        let relative_path = if file_path.starts_with(root_dir) {
+            match file_path.strip_prefix(root_dir) {
+                Ok(rel_path) => rel_path.to_path_buf(),
+                Err(_) => file_path.clone(),
+            }
+        } else {
+            file_path.clone()
+        };
+        
+        // Convert path separators and special characters to underscores (same as in generate_chunk_filename)
+        let path_str = relative_path.to_string_lossy();
+        let sanitized_path = path_str
+            .replace(['/', '\\'], "_") // Replace path separators with underscores
+            .replace(['.', ' ', '-', ':', '+'], "_"); // Replace other special characters
+        
+        // Remove leading underscore if present (from absolute paths)
+        let sanitized_path = sanitized_path.trim_start_matches('_');
+        
+        // Handle empty path
+        let file_prefix = if sanitized_path.is_empty() {
+            "unnamed_file".to_string()
+        } else {
+            sanitized_path.to_string()
+        };
+        
+        // Now check all files in the chunk directory
+        for entry in fs::read_dir(chunk_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            // Only look at .txt files
+            if path.extension().map_or(false, |ext| ext == "txt") {
+                // Get the filename as a string
+                let filename = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("");
+                
+                // Check if the filename starts with our prefix
+                if filename.starts_with(&file_prefix) {
+                    // The filename format is: path_from_root_converted_to_underscores_START-END.txt
+                    // Extract the START-END part
+                    if let Some(range_part) = filename.strip_prefix(&format!("{}_", file_prefix)) {
+                        if let Some(range_part) = range_part.strip_suffix(".txt") {
+                            // Parse the range values (START-END)
+                            if let Some((start_str, end_str)) = range_part.split_once('-') {
+                                if let (Ok(start), Ok(end)) = (start_str.parse::<usize>(), end_str.parse::<usize>()) {
+                                    // Adjust from 1-indexed (in filename) to 0-indexed (in code)
+                                    let start = start.saturating_sub(1);
+                                    let end = end.saturating_sub(1);
+                                    
+                                    // Add the range
+                                    self.chunked_ranges.push((start, end));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(())
     }
     
     /// Calculate the percentage of file that has been chunked
@@ -308,6 +449,14 @@ impl Viewer {
             if start >= self.content.len() || end >= self.content.len() {
                 return false;
             }
+            
+            // Check if content has actually been edited by comparing with original
+            let original_selection = &self.original_content[start..=end];
+            let original_slice: Vec<&String> = original_selection.iter().collect();
+            let edited_slice: Vec<&String> = edited_content.iter().collect();
+            
+            self.has_edited_content = original_slice.len() != edited_content.len() || 
+                original_slice.iter().zip(edited_slice.iter()).any(|(a, b)| *a != *b);
             
             // Replace content in the selected range
             let range_len = end - start + 1;
@@ -352,5 +501,10 @@ impl Viewer {
         }
         
         false
+    }
+    
+    /// Check if the selected content has been edited
+    pub fn has_edited_content(&self) -> bool {
+        self.has_edited_content
     }
 }

@@ -55,30 +55,31 @@
 - [x] Refactor editor module to use EdTUI instead of tui-textarea
 - [x] Customize cursor styling in EdTUI to look more like traditional Vim cursor
 - [x] Fix Ctrl+S behavior to properly chunk files instead of trying to save locally
-- [ ] Add support for Vim commands like `:wq`, `:q!`, etc.
-- [ ] Implement proper content transfer between viewer and editor
-- [ ] Ensure edited content is saved when chunking
+- [x] Add support for Vim commands like `:wq`, `:q!`, etc.
+- [x] Implement proper content transfer between viewer and editor
+- [x] Ensure edited content is saved when chunking
 - [x] Update key bindings documentation for Vim-like controls
-- [ ] Add tests for text editing functionality
-- [ ] Create stress tests to verify original files are never modified
+- [x] Add tests for text editing functionality
+- [x] Create stress tests to verify original files are never modified
 
 ## Phase 4: Chunk Saving & Tracking
-- [ ] Implement saving selected lines as chunk with 'S' key
-- [ ] Support saving edited content from editor mode instead of original content
-- [ ] Create chunks directory if it doesn't exist (./chunks/ by default)
-- [ ] Create filename scheme for chunks: path_from_root_converted_to_underscores_START-END.txt (e.g., /foo/bar.py → foo_bar_py_3-10.txt)
-- [ ] Track original selected region in source file even if chunk content is edited
-- [ ] Add chunk metadata format tracking: original file path, start/end lines, edit status, etc.
-- [ ] Implement tracking of which lines have been chunked for each file
-- [ ] Highlight saved chunks in the viewer with different color than selections
-- [ ] Implement chunk overlap detection and warn users
-- [ ] Update file explorer to show chunking progress (color-code files)
-- [ ] Update status indicators after chunking to show progress
-- [ ] Add Viewer mode indicator when viewing files with chunks
+- [x] Implement saving selected lines as chunk with 'S' key
+- [x] Support saving edited content from editor mode instead of original content
+- [x] Create chunks directory if it doesn't exist (./chunks/ by default)
+- [x] Create filename scheme for chunks: path_from_root_converted_to_underscores_START-END.txt (e.g., /foo/bar.py → foo_bar_py_3-10.txt)
+- [x] Track original selected region in source file even if chunk content is edited
+- [x] Add chunk metadata format tracking: original file path, start/end lines, edit status, etc.
+- [x] Implement tracking of which lines have been chunked for each file
+- [x] Highlight saved chunks in the viewer with different color than selections
+- [x] Implement chunk overlap detection and warn users
+- [x] Update file explorer to show chunking progress (color-code files)
+- [x] Update status indicators after chunking to show progress
+- [x] Add Viewer mode indicator when viewing files with chunks
 - [ ] Create mechanism to list and browse all chunks for a file
 - [ ] Add tests for chunk saving functionality
 - [ ] Add test to verify chunk content matches edited version when using editor mode
-- [ ] Add gitignore entry for chunks directory
+- [x] Persist chunk highlighting between sessions
+- [x] Add gitignore entry for chunks directory
 
 ## Data Safety Tests (Critical)
 - [ ] Create comprehensive test suite to verify original files are never modified

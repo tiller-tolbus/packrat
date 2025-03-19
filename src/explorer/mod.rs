@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 use walkdir::WalkDir;
 
 /// Representation of a directory entry
@@ -11,6 +12,8 @@ pub struct DirectoryEntry {
     pub path: PathBuf,
     /// Whether the entry is a directory
     pub is_dir: bool,
+    /// Chunking progress percentage (0-100)
+    pub chunking_progress: f64,
 }
 
 /// File explorer component
@@ -23,6 +26,8 @@ pub struct Explorer {
     entries: Vec<DirectoryEntry>,
     /// Currently selected entry index
     selected_index: usize,
+    /// Cache of chunking progress by file path
+    chunking_progress: HashMap<PathBuf, f64>,
 }
 
 impl Explorer {
@@ -39,12 +44,139 @@ impl Explorer {
             root_dir,
             entries: Vec::new(),
             selected_index: 0,
+            chunking_progress: HashMap::new(),
         };
         
         // Load initial entries
         explorer.load_entries()?;
         
         Ok(explorer)
+    }
+    
+    /// Initialize chunking progress data by scanning chunks directory
+    pub fn init_chunking_progress(&mut self, chunk_dir: &Path) -> Result<()> {
+        // If the chunks directory doesn't exist, there are no chunks
+        if !chunk_dir.exists() {
+            return Ok(());
+        }
+        
+        // Create a map of file path patterns to their chunk ranges
+        let mut file_chunks: HashMap<String, Vec<(usize, usize)>> = HashMap::new();
+        
+        // Iterate over all files in the chunks directory
+        for entry in std::fs::read_dir(chunk_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            // Skip non-txt chunk files
+            if path.extension().map_or(false, |ext| ext == "txt") {
+                let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+                
+                // Parse the filename to extract file path and chunk range
+                // Format is: path_from_root_converted_to_underscores_START-END.txt
+                if let Some(underscore_pos) = filename.rfind('_') {
+                    if let Some(range_part) = filename.get(underscore_pos + 1..).and_then(|s| s.strip_suffix(".txt")) {
+                        if let Some((start_str, end_str)) = range_part.split_once('-') {
+                            if let (Ok(start), Ok(end)) = (start_str.parse::<usize>(), end_str.parse::<usize>()) {
+                                // Adjust from 1-indexed (in filename) to 0-indexed
+                                let start = start.saturating_sub(1);
+                                let end = end.saturating_sub(1);
+                                
+                                // Now we need to convert the path part back to a real path
+                                let path_part = &filename[0..underscore_pos];
+                                
+                                // Add this range to the file's chunks
+                                file_chunks.entry(path_part.to_string())
+                                    .or_insert_with(Vec::new)
+                                    .push((start, end));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Process each file pattern and update chunking progress
+        for (path_pattern, ranges) in file_chunks {
+            self.calculate_chunking_progress_for_pattern(&path_pattern, ranges)?;
+        }
+        
+        // Refresh entries with the updated chunking progress
+        self.load_entries()?;
+        
+        Ok(())
+    }
+    
+    /// Calculate chunking progress for a file matching the given pattern
+    fn calculate_chunking_progress_for_pattern(&mut self, path_pattern: &str, ranges: Vec<(usize, usize)>) -> Result<()> {
+        // Find the file that matches this pattern
+        let mut matched_files = Vec::new();
+        
+        for entry in walkdir::WalkDir::new(&self.root_dir) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            
+            // Only consider files
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            
+            let path = entry.path();
+            
+            // Skip if it's a chunk file
+            if path.to_string_lossy().contains("chunks/") {
+                continue;
+            }
+            
+            // Get the relative path and sanitize it
+            let relative_path = match path.strip_prefix(&self.root_dir) {
+                Ok(rel_path) => rel_path,
+                Err(_) => continue,
+            };
+            
+            // Convert to string and sanitize the same way the chunk filename was created
+            let path_str = relative_path.to_string_lossy();
+            let sanitized_path = path_str
+                .replace(['/', '\\'], "_")
+                .replace(['.', ' ', '-', ':', '+'], "_")
+                .trim_start_matches('_')
+                .to_string();
+            
+            // Check if this file matches the pattern
+            if sanitized_path == path_pattern {
+                matched_files.push(path.to_path_buf());
+            }
+        }
+        
+        // Update chunking progress for each matched file
+        for file_path in matched_files {
+            // Read the file to count lines
+            if let Ok(content) = std::fs::read_to_string(&file_path) {
+                let total_lines = content.lines().count();
+                
+                if total_lines > 0 {
+                    // Count unique chunked lines using a boolean vector
+                    let mut chunked_lines = vec![false; total_lines];
+                    
+                    for (start, end) in &ranges {
+                        for i in *start..=(*end).min(total_lines - 1) {
+                            chunked_lines[i] = true;
+                        }
+                    }
+                    
+                    // Calculate percentage
+                    let chunked_count = chunked_lines.iter().filter(|&&chunked| chunked).count();
+                    let percentage = (chunked_count as f64 / total_lines as f64) * 100.0;
+                    
+                    // Update the chunking progress
+                    self.update_chunking_progress(&file_path, percentage);
+                }
+            }
+        }
+        
+        Ok(())
     }
     
     /// Reload entries in the current directory
@@ -58,6 +190,7 @@ impl Explorer {
                 name: "..".to_string(),
                 path: self.current_dir.join(".."),
                 is_dir: true,
+                chunking_progress: 0.0,
             });
         }
         
@@ -75,10 +208,18 @@ impl Explorer {
                 .to_string();
             let is_dir = entry.file_type().is_dir();
             
+            // Get chunking progress if we have it cached
+            let chunking_progress = if !is_dir {
+                *self.chunking_progress.get(&path).unwrap_or(&0.0)
+            } else {
+                0.0
+            };
+            
             self.entries.push(DirectoryEntry {
                 name,
                 path,
                 is_dir,
+                chunking_progress,
             });
         }
         
@@ -187,5 +328,23 @@ impl Explorer {
         }
         
         Ok(())
+    }
+    
+    /// Update the chunking progress for a file
+    pub fn update_chunking_progress(&mut self, file_path: &Path, progress: f64) {
+        self.chunking_progress.insert(file_path.to_path_buf(), progress);
+        
+        // Update the entry if it's in the current view
+        for entry in &mut self.entries {
+            if entry.path == file_path {
+                entry.chunking_progress = progress;
+                break;
+            }
+        }
+    }
+    
+    /// Get the chunking progress for a file
+    pub fn get_chunking_progress(&self, file_path: &Path) -> f64 {
+        *self.chunking_progress.get(file_path).unwrap_or(&0.0)
     }
 }
