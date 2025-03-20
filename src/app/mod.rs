@@ -423,6 +423,21 @@ impl App {
         
         // Special key handling
         match event.code {
+            // Handle Q key to exit editor mode (when in normal mode)
+            KeyCode::Char('q') | KeyCode::Char('Q') => {
+                // Only exit editor if we're in normal mode
+                if self.editor.mode() == "NORMAL" {
+                    // Warn user if they have unsaved changes
+                    if self.editor.is_modified() {
+                        self.state.set_debug_message("Exiting editor without saving changes".to_string(), 3);
+                    }
+                    self.state.mode = AppMode::Viewer;
+                } else {
+                    // Otherwise, let the editor handle it
+                    self.editor.handle_key_event(event);
+                }
+            },
+            
             // Handle Escape key based on editor mode
             KeyCode::Esc => {
                 // Only exit editor if we're already in normal mode

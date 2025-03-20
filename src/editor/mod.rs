@@ -199,6 +199,13 @@ impl Editor {
                 return false;
             },
             
+            // For Q (quick exit), handle at application level when in Normal mode
+            KeyCode::Char('q') | KeyCode::Char('Q') if 
+                self.state.mode == EditorMode::Normal && 
+                !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                return false;
+            },
+            
             // Handle colon key (enter command mode) in Normal mode
             KeyCode::Char(':') if self.state.mode == EditorMode::Normal => {
                 self.command_mode = true;
