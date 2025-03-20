@@ -124,19 +124,23 @@ impl App {
     fn handle_key_event(&mut self, event: event::KeyEvent) {
         use ratatui::crossterm::event::KeyCode;
         
+        // Check if we're in editor insert mode - pass all non-control keys directly to editor
+        let in_insert_mode = self.state.mode == AppMode::Editor && self.editor.is_in_insert_mode();
+        
         // If help panel is shown, any key dismisses it (except '?' which toggles)
         if self.state.show_help && event.code != KeyCode::Char('?') {
             self.state.show_help = false;
             return;
         }
 
-        // Handle '?' key to toggle help regardless of mode
-        if event.code == KeyCode::Char('?') {
+        // Handle '?' key to toggle help BUT NOT in insert mode
+        if !in_insert_mode && event.code == KeyCode::Char('?') {
             self.state.show_help = !self.state.show_help;
             return;
         }
 
         // Handle debug shortcuts if enabled, regardless of mode
+        // (Control keys still work in insert mode)
         if self.config.enable_debug && event.modifiers.contains(KeyModifiers::CONTROL) {
             match event.code {
                 // Ctrl+D: Dump UI state
@@ -588,12 +592,15 @@ impl App {
                 let handled = self.editor.handle_key_event(event);
                 if !handled {
                     // If the editor didn't handle it, check for our custom keys
-                    match event.code {
-                        // Toggle help panel
-                        KeyCode::Char('?') => {
-                            self.state.show_help = !self.state.show_help;
-                        },
-                        _ => {}
+                    // BUT only if not in insert mode
+                    if !self.editor.is_in_insert_mode() {
+                        match event.code {
+                            // Toggle help panel
+                            KeyCode::Char('?') => {
+                                self.state.show_help = !self.state.show_help;
+                            },
+                            _ => {}
+                        }
                     }
                 }
             }

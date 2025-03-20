@@ -128,6 +128,11 @@ impl Editor {
         }
     }
     
+    /// Check if we're in insert mode
+    pub fn is_in_insert_mode(&self) -> bool {
+        self.state.mode == EditorMode::Insert
+    }
+    
     /// Check if a command is intended to save content
     pub fn is_save_command(&self) -> bool {
         self.command_buffer == ":wq" || self.command_buffer == ":x"
@@ -194,8 +199,9 @@ impl Editor {
                 return false;
             }
             
-            // For ? (help key), handle at application level
-            KeyCode::Char('?') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            // For ? (help key), handle at application level ONLY in normal mode
+            KeyCode::Char('?') if !key.modifiers.contains(KeyModifiers::CONTROL) && 
+                                 self.state.mode == EditorMode::Normal => {
                 return false;
             },
             
