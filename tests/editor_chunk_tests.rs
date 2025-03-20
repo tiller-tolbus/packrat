@@ -116,7 +116,11 @@ fn test_editor_to_chunk_workflow() -> Result<()> {
     viewer.open_file(&test_file_path)?;
     
     // Select lines 10-15 (indexes 9-14)
-    viewer.cursor_position = 9; // Set to line 10
+    // Move to line 10 (index 9)
+    viewer.scroll_to_top(); // Reset position
+    for _ in 0..9 {
+        viewer.cursor_down(); // Move to line 10
+    }
     viewer.toggle_selection_mode();
     for _ in 0..5 {
         viewer.cursor_down(); // Move to line 15

@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use crate::utils::{generate_chunk_filename, count_tokens, count_tokens_in_lines, format_token_count};
+use crate::utils::{generate_chunk_filename, count_tokens, count_tokens_in_lines};
 
 /// Text viewer component
 pub struct Viewer {
@@ -161,38 +161,14 @@ impl Viewer {
         })
     }
     
-    /// Check if the current selection exceeds the token limit
-    pub fn selection_exceeds_token_limit(&self) -> bool {
-        if let Some(token_count) = self.selection_token_count() {
-            token_count > self.max_tokens_per_chunk
-        } else {
-            false
-        }
-    }
+    // Removed unused function: selection_exceeds_token_limit
     
     /// Get token count for the entire file
     pub fn total_token_count(&self) -> usize {
         self.total_tokens
     }
     
-    /// Get a formatted string with token count for the current selection
-    pub fn formatted_selection_token_count(&self) -> String {
-        if let Some(count) = self.selection_token_count() {
-            let percentage = if self.max_tokens_per_chunk > 0 {
-                (count as f64 / self.max_tokens_per_chunk as f64) * 100.0
-            } else {
-                0.0
-            };
-            
-            if percentage > 100.0 {
-                format!("{} ({}% OVER LIMIT!)", format_token_count(count), percentage as usize)
-            } else {
-                format!("{} ({}%)", format_token_count(count), percentage as usize)
-            }
-        } else {
-            "No selection".to_string()
-        }
-    }
+    // Removed unused function: formatted_selection_token_count
     
     /// Clear the current selection
     pub fn clear_selection(&mut self) {
@@ -238,6 +214,7 @@ impl Viewer {
     }
     
     /// Scroll up one line
+    #[allow(dead_code)]
     pub fn scroll_up(&mut self) {
         self.scroll_position = self.scroll_position.saturating_sub(1);
         
@@ -248,6 +225,7 @@ impl Viewer {
     }
     
     /// Scroll down one line
+    #[allow(dead_code)]
     pub fn scroll_down(&mut self) {
         if !self.content.is_empty() {
             self.scroll_position = (self.scroll_position + 1).min(self.content.len().saturating_sub(1));
@@ -299,6 +277,7 @@ impl Viewer {
     }
     
     /// Scroll to a specific position
+    #[allow(dead_code)]
     pub fn scroll_to_position(&mut self, position: usize) {
         if !self.content.is_empty() {
             self.scroll_position = position.min(self.content.len() - 1);
@@ -325,13 +304,7 @@ impl Viewer {
         self.content[start..end].to_vec()
     }
     
-    /// Check if a line is empty or contains only whitespace
-    pub fn is_whitespace_line(&self, line_index: usize) -> bool {
-        if line_index >= self.content.len() {
-            return false;
-        }
-        self.content[line_index].trim().is_empty()
-    }
+    // Removed unused function: is_whitespace_line
     
     /// Save current selection as a chunk
     pub fn save_selection_as_chunk(&mut self, chunk_dir: &Path, root_dir: &Path) -> Result<PathBuf> {
@@ -407,6 +380,7 @@ impl Viewer {
     }
     
     /// Get all chunked ranges
+    #[allow(dead_code)]
     pub fn chunked_ranges(&self) -> &[(usize, usize)] {
         &self.chunked_ranges
     }
@@ -577,6 +551,7 @@ impl Viewer {
     }
     
     /// Check if the selected content has been edited
+    #[allow(dead_code)]
     pub fn has_edited_content(&self) -> bool {
         self.has_edited_content
     }
