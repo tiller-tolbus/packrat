@@ -74,12 +74,12 @@ fn render_viewer_mode(frame: &mut Frame, state: &AppState, viewer: &Viewer) {
 
 /// Render the file explorer content
 fn render_explorer_content(frame: &mut Frame, area: Rect, explorer: &Explorer) {
-    // Create a centered title
-    let title_text = "◆ Packrat ◆";
-    let title = create_centered_title(&title_text, area.width);
+    // Create a title with a square character on both sides
+    let title_text = "□ Packrat □";
     
     let block = Block::default()
-        .title(title)
+        .title(title_text)
+        .title_alignment(ratatui::layout::Alignment::Center)
         .borders(Borders::ALL);
     
     let inner_area = block.inner(area);
@@ -165,31 +165,39 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         .map(|p| p.file_name().unwrap_or_default().to_string_lossy().to_string())
         .unwrap_or_else(|| "Unknown File".to_string());
     
-    // Add chunking status to title
+    // Add chunking status to title with consistent square character
     let chunking_percent = viewer.chunking_percentage();
     let title_text = if chunking_percent > 0.0 {
-        format!("⊡ {} [{:.1}% Chunked]", file_name, chunking_percent)
+        format!("□ {} [{:.1}% Chunked]", file_name, chunking_percent)
     } else {
-        format!("⊡ {}", file_name)
+        format!("□ {}", file_name)
     };
     
-    // Add token count for the current selection
+    // Add token count for the current selection with a square at the end
     let token_info = if let Some(token_count) = viewer.selection_token_count() {
         let percentage = (token_count as f64 / viewer.max_tokens_per_chunk() as f64) * 100.0;
         
         // Format token info based on percentage
         if percentage >= 100.0 {
-            format!("TOKENS: {} / {} ({}% OVER LIMIT!) ", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
+            format!("TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
         } else {
-            format!("TOKENS: {} / {} ({}%) ", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
+            format!("TOKENS: {} / {} ({}%) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
         }
     } else {
         let total = viewer.total_token_count();
-        format!("TOTAL TOKENS: {} ", total)
+        format!("TOTAL TOKENS: {} □", total)
     };
     
-    // Create a title with token count on the right
-    let title = create_title_with_right_element(&title_text, &token_info, area.width);
+    // Style for token info
+    let token_style = if token_info.contains("OVER LIMIT") {
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Blue)
+    };
+    
+    // Left and right titles using ratatui's built-in title support
+    let left_title = title_text;
+    let right_title = Line::from(Span::styled(token_info, token_style));
     
     // Set border color based on chunking progress
     let border_style = if chunking_percent >= 99.0 {
@@ -206,8 +214,13 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         Style::default()
     };
     
+    // Use left-aligned and right-aligned titles on the same block
+    let left_aligned_title = Line::from(left_title).left_aligned();
+    let right_aligned_title = Line::from(right_title).right_aligned();
+    
     let block = Block::default()
-        .title(title)
+        .title(left_aligned_title)
+        .title(right_aligned_title)
         .borders(Borders::ALL)
         .border_style(border_style);
     
@@ -481,9 +494,10 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
         .split(frame.area());
     
     // Create the editor widget area with border
-    let title = format!("✎ Editing Text");
+    let title = "□ Editing Text □";
     let block = Block::default()
         .title(title)
+        .title_alignment(ratatui::layout::Alignment::Center)
         .borders(Borders::ALL);
     
     let inner_area = block.inner(chunks[0]);
@@ -556,66 +570,7 @@ fn render_debug_overlay(frame: &mut Frame, message: &str) {
     frame.render_widget(debug_message, debug_area);
 }
 
-/// Create a centered title for a block
-fn create_centered_title(title: &str, width: u16) -> ratatui::text::Line {
-    // Calculate padding to center the title
-    let title_width = title.len() as u16;
-    let padding = width.saturating_sub(title_width) / 2;
-    let padding_str = " ".repeat(padding as usize);
-    
-    // Create a Line with the padded title
-    Line::from(format!("{}{}", padding_str, title))
-}
 
-/// Create a title with a left element and a right-aligned element
-fn create_title_with_right_element<'a>(left: &'a str, right: &'a str, width: u16) -> ratatui::text::Line<'a> {
-    // Calculate the space needed
-    let title_width = left.len() as u16;
-    let right_width = right.len() as u16;
-    
-    // Create a vector of spans for the title
-    let mut spans = Vec::new();
-    
-    // Add the left element
-    spans.push(Span::raw(left));
-    
-    // Calculate padding to push the right element to the right edge
-    let available_space = width.saturating_sub(title_width).saturating_sub(right_width);
-    if available_space > 0 {
-        spans.push(Span::raw(" ".repeat(available_space as usize)));
-    }
-    
-    // Add the right element with appropriate styling based on content
-    let right_style = if right.contains("OVER LIMIT") {
-        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
-    } else if right.contains("TOKENS:") {
-        // Extract percentage from the string
-        if let Some(percent_str) = right.split('(').nth(1).and_then(|s| s.split('%').next()) {
-            if let Ok(percent) = percent_str.trim().parse::<f64>() {
-                if percent >= 90.0 {
-                    Style::default().fg(Color::LightRed)
-                } else if percent >= 75.0 {
-                    Style::default().fg(Color::Yellow)
-                } else if percent >= 50.0 {
-                    Style::default().fg(Color::Green)
-                } else {
-                    Style::default().fg(Color::Blue)
-                }
-            } else {
-                Style::default().fg(Color::Blue)
-            }
-        } else {
-            Style::default().fg(Color::Blue)
-        }
-    } else {
-        Style::default().fg(Color::Blue)
-    };
-    
-    spans.push(Span::styled(right, right_style));
-    
-    // Create a Line with the spans
-    Line::from(spans)
-}
 
 /// UI serializer for debug output
 pub struct UiSerializer;
