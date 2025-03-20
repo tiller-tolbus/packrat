@@ -179,41 +179,22 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     let token_info = if let Some(token_count) = viewer.selection_token_count() {
         let percentage = (token_count as f64 / viewer.max_tokens_per_chunk() as f64) * 100.0;
         
-        // Format token info based on percentage
-        if percentage >= 100.0 {
-            format!("□ TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
-        } else {
-            format!("□ TOKENS: {} / {} ({}%) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
-        }
+        // Token percentage info - debug message for over limit is set in app code
+        
+        // Format token info consistently
+        format!("□ TOKENS: {} / {} ({}%) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
     } else {
         let total = viewer.total_token_count();
         format!("□ TOTAL TOKENS: {} □", total)
     };
     
-    // Style for token info
-    let token_style = if token_info.contains("OVER LIMIT") {
-        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::Blue)
-    };
+    // Use default style for consistent appearance
+    let token_style = Style::default();
     
     // Left and right titles using ratatui's built-in title support
     let left_title = title_text;
     
-    // Set border color based on chunking progress
-    let border_style = if chunking_percent >= 99.0 {
-        // Fully chunked - green
-        Style::default().fg(Color::Green)
-    } else if chunking_percent >= 66.0 {
-        // Mostly chunked - orange
-        Style::default().fg(Color::LightRed)
-    } else if chunking_percent > 0.0 {
-        // Partially chunked - yellow
-        Style::default().fg(Color::Yellow)
-    } else {
-        // Not chunked - normal border
-        Style::default()
-    };
+    // No special border styling needed for consistency
     
     // Use left-aligned and right-aligned titles with Ratatui's alignment methods
     let left_aligned_title = Line::from(left_title).left_aligned();
@@ -223,8 +204,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     let block = Block::default()
         .title(left_aligned_title)
         .title(right_aligned_title)
-        .borders(Borders::ALL)
-        .border_style(border_style);
+        .borders(Borders::ALL);
     
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
@@ -334,35 +314,20 @@ fn render_viewer_status(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         }
     };
     
-    // Add chunking percentage with color based on progress if any chunks exist
+    // Add chunking percentage info if any chunks exist
     let chunking_percent = viewer.chunking_percentage();
-    let (chunk_info, chunk_style) = if chunking_percent > 0.0 {
-        // Choose color based on chunking percentage
-        let chunk_style = if chunking_percent >= 99.0 {
-            // Fully chunked - green
-            Style::default().fg(Color::Green)
-        } else if chunking_percent >= 66.0 {
-            // Mostly chunked - orange
-            Style::default().fg(Color::LightRed)
-        } else {
-            // Partially chunked - yellow
-            Style::default().fg(Color::Yellow)
-        };
-        
-        (format!("{:.1}% CHUNKED | ", chunking_percent), chunk_style)
+    let chunk_info = if chunking_percent > 0.0 {
+        format!("{:.1}% CHUNKED | ", chunking_percent)
     } else {
-        ("".to_string(), Style::default().fg(Color::Reset))
+        "".to_string()
     };
     
-    // Create status line with color for chunking percentage
+    // Create status line with default styling for consistency
     let status_line = if chunk_info.is_empty() {
         Line::from(format!(" ?:Help | Space:Toggle Selection | s:Save Chunk | {} q/Esc:Back | ↑↓/kj:Move", selection_info))
     } else {
-        Line::from(vec![
-            Span::raw(" ?:Help | Space:Toggle Selection | s:Save Chunk | "),
-            Span::styled(chunk_info, chunk_style),
-            Span::raw(format!("{} q/Esc:Back | ↑↓/kj:Move", selection_info))
-        ])
+        Line::from(format!(" ?:Help | Space:Toggle Selection | s:Save Chunk | {} | {} q/Esc:Back | ↑↓/kj:Move", 
+            chunk_info, selection_info))
     };
     
     let status = Paragraph::new(status_line);
@@ -520,19 +485,13 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
     let max_tokens = editor.max_tokens();
     let percentage = (token_count as f64 / max_tokens as f64) * 100.0;
     
-    // Format token info based on percentage
-    let token_info = if percentage >= 100.0 {
-        format!("□ TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, max_tokens, percentage as usize)
-    } else {
-        format!("□ TOKENS: {} / {} ({}%) □", token_count, max_tokens, percentage as usize)
-    };
+    // Format token info consistently
+    let token_info = format!("□ TOKENS: {} / {} ({}%) □", token_count, max_tokens, percentage as usize);
     
-    // Style for token info
-    let token_style = if percentage >= 100.0 {
-        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::Blue)
-    };
+    // Token percentage info - debug message for over limit is set in app code
+    
+    // Use default style for consistent appearance
+    let token_style = Style::default();
     
     // Use left-aligned and right-aligned titles with Ratatui's alignment methods
     let left_aligned_title = Line::from(left_title).left_aligned();
@@ -559,17 +518,6 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
 fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
     // Get editor mode
     let mode = editor.mode();
-    let mode_style = if mode == "NORMAL" {
-        Style::default().fg(Color::Blue)
-    } else if mode == "INSERT" {
-        Style::default().fg(Color::Green)
-    } else if mode == "VISUAL" {
-        Style::default().fg(Color::Yellow)
-    } else if mode == ":" {
-        Style::default().fg(Color::LightRed)
-    } else {
-        Style::default()
-    };
     
     // Show modified indicator
     let modified = if editor.is_modified() {
@@ -580,26 +528,11 @@ fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
     
     // Create status line with appropriate guidance based on mode
     let status_line = if mode == "NORMAL" {
-        Line::from(vec![
-            Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
-            Span::raw(" | "),
-            Span::raw(modified),
-            Span::raw("?:Help | i:Insert Mode | Ctrl+S:Save | Esc:Cancel")
-        ])
+        format!(" {} | {}?:Help | i:Insert Mode | Ctrl+S:Save | Esc:Cancel", mode, modified)
     } else if mode == "INSERT" {
-        Line::from(vec![
-            Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
-            Span::raw(" | "),
-            Span::raw(modified),
-            Span::raw("?:Help | Esc:Normal Mode | Ctrl+S:Save")
-        ])
+        format!(" {} | {}?:Help | Esc:Normal Mode | Ctrl+S:Save", mode, modified)
     } else {
-        Line::from(vec![
-            Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
-            Span::raw(" | "),
-            Span::raw(modified),
-            Span::raw("?:Help | Ctrl+S:Save | Esc:Cancel")
-        ])
+        format!(" {} | {}?:Help | Ctrl+S:Save | Esc:Cancel", mode, modified)
     };
     
     let status = Paragraph::new(status_line);
