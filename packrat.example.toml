@@ -19,9 +19,6 @@ debug_dir = "debug"
 # Can be relative to current directory or absolute path
 source_dir = "."
 
-# Enable Vim-style keybindings (j/k for navigation)
-vim_keybindings = true
-
 # Auto-save chunks when reaching max token count
 # When enabled, will automatically save chunks when token limit is reached
 auto_save_chunks = false

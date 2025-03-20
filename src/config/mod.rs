@@ -24,9 +24,6 @@ pub struct Config {
     /// Default source directory to open on startup
     pub source_dir: PathBuf,
     
-    /// Vim keybindings enabled
-    pub vim_keybindings: bool,
-    
     /// Auto-save chunks when reaching max token count
     pub auto_save_chunks: bool,
 }
@@ -49,9 +46,6 @@ impl Default for Config {
             
             // Default to current directory
             source_dir: PathBuf::from("."),
-            
-            // Vim keybindings enabled by default
-            vim_keybindings: true,
             
             // Don't auto-save chunks by default
             auto_save_chunks: false,
