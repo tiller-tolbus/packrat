@@ -10,5 +10,5 @@
 /.refs/
 
 # Ignore AI instructions
-CLAUDE.md
-todo.txt
+/CLAUDE.md
+/todo.txt
