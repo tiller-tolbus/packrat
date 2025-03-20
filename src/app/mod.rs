@@ -122,6 +122,20 @@ impl App {
 
     /// Handle key events
     fn handle_key_event(&mut self, event: event::KeyEvent) {
+        use ratatui::crossterm::event::KeyCode;
+        
+        // If help panel is shown, any key dismisses it (except '?' which toggles)
+        if self.state.show_help && event.code != KeyCode::Char('?') {
+            self.state.show_help = false;
+            return;
+        }
+
+        // Handle '?' key to toggle help regardless of mode
+        if event.code == KeyCode::Char('?') {
+            self.state.show_help = !self.state.show_help;
+            return;
+        }
+
         // Handle debug shortcuts if enabled, regardless of mode
         if self.config.enable_debug && event.modifiers.contains(KeyModifiers::CONTROL) {
             match event.code {
@@ -186,17 +200,7 @@ impl App {
     fn handle_explorer_key_event(&mut self, event: event::KeyEvent) {
         use ratatui::crossterm::event::KeyCode;
 
-        // If help panel is shown, any key dismisses it (except '?' which toggles)
-        if self.state.show_help && event.code != KeyCode::Char('?') {
-            self.state.show_help = false;
-            return;
-        }
-
         match event.code {
-            // Toggle help panel
-            KeyCode::Char('?') => {
-                self.state.show_help = !self.state.show_help;
-            },
             
             // Quit application
             KeyCode::Char('q') | KeyCode::Esc => self.state.should_quit = true,
@@ -265,17 +269,7 @@ impl App {
     fn handle_viewer_key_event(&mut self, event: event::KeyEvent) {
         use ratatui::crossterm::event::KeyCode;
 
-        // If help panel is shown, any key dismisses it (except '?' which toggles)
-        if self.state.show_help && event.code != KeyCode::Char('?') {
-            self.state.show_help = false;
-            return;
-        }
-
         match event.code {
-            // Toggle help panel
-            KeyCode::Char('?') => {
-                self.state.show_help = !self.state.show_help;
-            },
             
             // Exit viewer and return to explorer
             KeyCode::Char('q') | KeyCode::Esc => {
