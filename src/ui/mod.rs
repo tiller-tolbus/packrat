@@ -220,7 +220,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     let cursor_position = viewer.cursor_position();
     let scroll_position = viewer.scroll_position();
     
-    // Get current cursor and scroll information
+    // We'll calculate the number of lines as needed in our loop
     
     // Create text content for the paragraph with selection highlighting
     let content: Vec<Line> = visible_content
@@ -245,40 +245,60 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
                 Style::default().fg(Color::Reset)
             };
             
+            // Calculate line number width based on total content lines
+            // Use at least 3 chars width for line numbers
+            let total_lines = viewer.content().len();
+            let line_number_width = total_lines.to_string().len().max(3);
+            
+            // Create the line number for this line (1-indexed for display)
+            let absolute_line_number = scroll_position + i + 1;
+            
             // Create the line's content span with appropriate style
             let content_span = Span::styled(line.as_str(), style);
             
-            // Create the appropriate line based on whether this is the cursor line
-            // and if the content is empty
+            // Cursor and line number handling
             if is_cursor_line {
-                // Use different cursor styles based on mode
-                let (cursor_symbol, cursor_style) = if viewer.is_selection_mode() {
-                    ("▶", Style::default().bg(Color::Yellow).fg(Color::Black))
+                // Choose appropriate cursor style based on selection mode
+                let cursor_style = if viewer.is_selection_mode() {
+                    Style::default().bg(Color::Yellow).fg(Color::Black)
                 } else {
-                    (">", Style::default().bg(Color::DarkGray).fg(Color::White))
+                    Style::default().bg(Color::DarkGray).fg(Color::White)
                 };
                 
+                // Format with line number, cursor arrow, and content
+                let line_number_with_cursor = format!("{:>width$} > ", absolute_line_number, width = line_number_width);
+                
                 if line.is_empty() {
-                    // For empty lines with cursor, just show the cursor
+                    // For empty lines with cursor
                     Line::from(vec![
-                        Span::styled(format!("{} ", cursor_symbol), cursor_style)
+                        Span::styled(line_number_with_cursor, cursor_style),
+                        Span::raw("") // Empty content but maintain structure
                     ])
                 } else {
-                    // For lines with content, show cursor and content
+                    // For lines with content
                     Line::from(vec![
-                        Span::styled(format!("{} ", cursor_symbol), cursor_style),
+                        Span::styled(line_number_with_cursor, cursor_style),
                         content_span
                     ])
                 }
             } else {
-                // Non-cursor lines
+                // Non-cursor lines get a subtle line number style
+                let line_number_style = Style::default().fg(Color::DarkGray);
+                
+                // Format with line number and proper spacing to align with cursor lines
+                // Add two spaces where the cursor arrow would be (> )
+                let line_number = format!("{:>width$}   ", absolute_line_number, width = line_number_width);
+                
                 if line.is_empty() {
-                    // For empty lines without cursor, use a truly empty line
-                    Line::from("")
-                } else {
-                    // For non-empty lines, maintain spacing for alignment
+                    // Empty lines still need the line number
                     Line::from(vec![
-                        Span::raw("  "), // Space where cursor would be
+                        Span::styled(line_number, line_number_style),
+                        Span::raw("")
+                    ])
+                } else {
+                    // Standard lines with content
+                    Line::from(vec![
+                        Span::styled(line_number, line_number_style),
                         content_span
                     ])
                 }
@@ -286,7 +306,9 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         })
         .collect();
     
-    // Create and render the paragraph widget
+    // Create and render the paragraph widget with wrap
+    // We can't use indent directly in this version of Ratatui, but our content structure 
+    // with line numbers already creates the desired indentation effect
     let content_widget = Paragraph::new(content)
         .style(Style::default().fg(Color::Reset))
         .wrap(Wrap { trim: true }); // Use trim=true to handle whitespace consistently
