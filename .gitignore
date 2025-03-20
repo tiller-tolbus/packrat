@@ -8,3 +8,7 @@
 
 # Ignore reference files directory
 /.refs/
+
+# Ignore AI instructions
+CLAUDE.md
+todo.txt
