@@ -423,13 +423,19 @@ impl App {
         
         // Special key handling
         match event.code {
-            // Exit editor and return to viewer
+            // Handle Escape key based on editor mode
             KeyCode::Esc => {
-                // Warn user if they have unsaved changes
-                if self.editor.is_modified() {
-                    self.state.set_debug_message("Exiting editor without saving changes".to_string(), 3);
+                // Only exit editor if we're already in normal mode
+                if self.editor.mode() == "NORMAL" {
+                    // Warn user if they have unsaved changes
+                    if self.editor.is_modified() {
+                        self.state.set_debug_message("Exiting editor without saving changes".to_string(), 3);
+                    }
+                    self.state.mode = AppMode::Viewer;
+                } else {
+                    // Otherwise, let the editor handle it (to switch from insert/visual to normal mode)
+                    self.editor.handle_key_event(event);
                 }
-                self.state.mode = AppMode::Viewer;
             },
             
             // Handle Enter key for Vim commands (e.g., ":wq", ":q!", ":q")

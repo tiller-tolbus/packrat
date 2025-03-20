@@ -213,9 +213,13 @@ impl Editor {
                 if matches!(self.state.mode, EditorMode::Insert | EditorMode::Visual) {
                     self.event_handler.on_key_event(key, &mut self.state);
                     return true;
-                } else {
-                    // In normal mode, exit the editor
+                } else if self.state.mode == EditorMode::Normal {
+                    // In normal mode, let the app handle it
                     return false;
+                } else {
+                    // For any other modes, handle here
+                    self.event_handler.on_key_event(key, &mut self.state);
+                    return true;
                 }
             }
             
