@@ -263,7 +263,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
                 Style::default().fg(Color::Reset)
             };
             
-            // Create the line's content span (may be empty but that's okay)
+            // Create the line's content span with appropriate style
             let content_span = Span::styled(line.as_str(), style);
             
             // Create the appropriate line based on whether this is the cursor line
@@ -397,73 +397,76 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
             vec![
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Navigation", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  ↑/k, ↓/j        Move selection up/down"),
-                Line::from("  PgUp, PgDn      Page up/down"),
-                Line::from("  Home, End       Jump to top/bottom"),
+                Line::from("    ↑/k, ↓/j            Move selection up/down"),
+                Line::from("    PgUp, PgDn          Page up/down"),
+                Line::from("    Home, End           Jump to top/bottom"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Actions", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  Enter, l, →     Open selected file/directory"),
-                Line::from("  h, ←            Go to parent directory"),
-                Line::from("  q, Esc          Quit application"),
+                Line::from("    Enter, l, →         Open selected file/directory"),
+                Line::from("    h, ←                Go to parent directory"),
+                Line::from("    q, Esc              Quit application"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Help", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Help", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  ?               Toggle this help panel"),
-                Line::from("  Press any key to close help")
+                Line::from("    ?                   Toggle this help panel"),
+                Line::from(""),
+                Line::from("    Press any key to close help")
             ]
         },
         AppMode::Viewer => {
             vec![
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Navigation", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  ↑/k, ↓/j        Move cursor up/down"),
-                Line::from("  Shift+↑/↓, Shift+j/k  Fast scroll (5 lines)"),
-                Line::from("  PgUp, PgDn      Page up/down"),
-                Line::from("  Home, End       Jump to top/bottom"),
+                Line::from("    ↑/k, ↓/j            Move cursor up/down"),
+                Line::from("    Shift+↑/↓, j/k      Fast scroll (5 lines)"),
+                Line::from("    PgUp, PgDn          Page up/down"),
+                Line::from("    Home, End           Jump to top/bottom"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Selection & Chunking", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Selection & Chunking", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  Space           Toggle selection mode"),
-                Line::from("  s               Save selected text as chunk"),
-                Line::from("  e               Open selected text in editor"),
+                Line::from("    Space               Toggle selection mode"),
+                Line::from("    s                   Save selected text as chunk"),
+                Line::from("    e                   Open selected text in editor"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Other Actions", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Other Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  q, Esc          Return to file explorer"),
-                Line::from("  ?               Toggle this help panel"),
-                Line::from("  Press any key to close help")
+                Line::from("    q, Esc              Return to file explorer"),
+                Line::from("    ?                   Toggle this help panel"),
+                Line::from(""),
+                Line::from("    Press any key to close help")
             ]
         },
         AppMode::Editor => {
             vec![
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Vim Commands", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Vim Commands", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  Normal mode: h,j,k,l for movement"),
-                Line::from("  i, a, o         Enter insert mode"),
-                Line::from("  v               Enter visual mode"),
-                Line::from("  :               Enter command mode"),
-                Line::from("  :w              Save changes"),
-                Line::from("  :wq, :x         Save and exit"),
-                Line::from("  :q              Quit (requires no changes)"),
-                Line::from("  :q!             Force quit without saving"),
+                Line::from("    h, j, k, l          Movement (normal mode)"),
+                Line::from("    i, a, o             Enter insert mode"),
+                Line::from("    v                   Enter visual mode"),
+                Line::from("    :                   Enter command mode"),
+                Line::from("    :w                  Save changes"),
+                Line::from("    :wq, :x             Save and exit"),
+                Line::from("    :q                  Quit (requires no changes)"),
+                Line::from("    :q!                 Force quit without saving"),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Direct Actions", Style::default().add_modifier(Modifier::BOLD))
+                    Span::styled("  Direct Actions", Style::default().add_modifier(Modifier::BOLD))
                 ]),
-                Line::from("  Ctrl+S          Save changes and exit"),
-                Line::from("  Esc (in normal mode)  Cancel and exit"),
-                Line::from("  Press any key to close help")
+                Line::from("    Ctrl+S              Save changes and exit"),
+                Line::from("    Esc                 Exit to viewer (normal mode only)"),
+                Line::from(""),
+                Line::from("    Press any key to close help")
             ]
         }
     };
@@ -484,7 +487,7 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
     
     // Then render the content
     let help_content = Paragraph::new(content)
-        .alignment(ratatui::layout::Alignment::Center);
+        .alignment(ratatui::layout::Alignment::Left);
     
     frame.render_widget(help_content, inner_area);
 }
@@ -573,13 +576,29 @@ fn render_editor_status(frame: &mut Frame, area: Rect, editor: &Editor) {
         ""
     };
     
-    // Create status line
-    let status_line = Line::from(vec![
-        Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
-        Span::raw(" | "),
-        Span::raw(modified),
-        Span::raw("?:Help | Ctrl+S:Save | Esc:Cancel | Type to edit")
-    ]);
+    // Create status line with appropriate guidance based on mode
+    let status_line = if mode == "NORMAL" {
+        Line::from(vec![
+            Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
+            Span::raw(" | "),
+            Span::raw(modified),
+            Span::raw("?:Help | i:Insert Mode | Ctrl+S:Save | Esc:Cancel")
+        ])
+    } else if mode == "INSERT" {
+        Line::from(vec![
+            Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
+            Span::raw(" | "),
+            Span::raw(modified),
+            Span::raw("?:Help | Esc:Normal Mode | Ctrl+S:Save")
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled(format!(" {} ", mode), mode_style.add_modifier(Modifier::BOLD)),
+            Span::raw(" | "),
+            Span::raw(modified),
+            Span::raw("?:Help | Ctrl+S:Save | Esc:Cancel")
+        ])
+    };
     
     let status = Paragraph::new(status_line);
     

@@ -321,7 +321,7 @@ impl Viewer {
         let start = self.scroll_position;
         let end = (start + height).min(self.content.len());
         
-        // Return sliced content without modifying empty lines
+        // Return a slice of the content
         self.content[start..end].to_vec()
     }
     
