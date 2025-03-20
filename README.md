@@ -5,8 +5,7 @@ A TUI (Terminal User Interface) application for interactively chunking text file
 ## Features
 
 - **File Explorer**: Navigate your filesystem to select files for chunking
-- **Text Viewer**: View file contents with syntax highlighting
-- **Text Selection**: Select text ranges for chunking
+- **Text Viewer**: View file contents and select text for chunking
 - **Chunk Editor**: Edit text chunks before saving
 - **Token Counter**: Real-time token counting using Claude's tokenizer
 - **Vim Keybindings**: Familiar navigation and editing for Vim users
