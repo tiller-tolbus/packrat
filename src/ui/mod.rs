@@ -391,7 +391,7 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
     };
     
     // Create the help content based on current mode
-    let title = "Keyboard Shortcuts";
+    let title = " Keyboard Shortcuts ";
     let content = match mode {
         AppMode::Explorer => {
             vec![
@@ -474,9 +474,10 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
     // Create a clear overlay for the help panel background
     frame.render_widget(Clear, help_area);
     
-    // Create the block for the help panel
+    // Create the block for the help panel with a centered title
     let block = Block::default()
         .title(title)
+        .title_alignment(ratatui::layout::Alignment::Center)
         .borders(Borders::ALL)
         .style(Style::default().bg(Color::Reset).fg(Color::Reset));
     
