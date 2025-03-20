@@ -493,11 +493,38 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
         ])
         .split(frame.area());
     
-    // Create the editor widget area with border
-    let title = "□ Editing Text □";
+    // Get the filename or use a default
+    let file_name = editor.file_name().unwrap_or_else(|| "Untitled".to_string());
+    let left_title = format!("□ Editing: {}", file_name);
+    
+    // Add token count for the text being edited
+    let token_count = editor.token_count();
+    let max_tokens = editor.max_tokens();
+    let percentage = (token_count as f64 / max_tokens as f64) * 100.0;
+    
+    // Format token info based on percentage
+    let token_info = if percentage >= 100.0 {
+        format!("TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, max_tokens, percentage as usize)
+    } else {
+        format!("TOKENS: {} / {} ({}%) □", token_count, max_tokens, percentage as usize)
+    };
+    
+    // Style for token info
+    let token_style = if percentage >= 100.0 {
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Blue)
+    };
+    
+    let right_title = Line::from(Span::styled(token_info, token_style));
+    
+    // Use left-aligned and right-aligned titles on the same block
+    let left_aligned_title = Line::from(left_title).left_aligned();
+    let right_aligned_title = Line::from(right_title).right_aligned();
+    
     let block = Block::default()
-        .title(title)
-        .title_alignment(ratatui::layout::Alignment::Center)
+        .title(left_aligned_title)
+        .title(right_aligned_title)
         .borders(Borders::ALL);
     
     let inner_area = block.inner(chunks[0]);

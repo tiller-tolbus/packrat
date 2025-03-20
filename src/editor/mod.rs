@@ -1,6 +1,7 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::prelude::{Widget, Style, Color, Modifier};
 use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView, EditorMode, RowIndex};
+use crate::utils::tokenizer::count_tokens;
 
 /// Text editor component 
 pub struct Editor {
@@ -16,6 +17,10 @@ pub struct Editor {
     command_buffer: String,
     /// Whether we're in command mode (after typing ":")
     command_mode: bool,
+    /// The name of the file being edited
+    file_name: Option<String>,
+    /// Maximum tokens per chunk
+    max_tokens: usize,
 }
 
 impl Default for Editor {
@@ -34,6 +39,8 @@ impl Editor {
             original_content: Vec::new(),
             command_buffer: String::new(),
             command_mode: false,
+            file_name: None,
+            max_tokens: 8192, // Default max tokens, same as default config
         }
     }
     
@@ -55,6 +62,33 @@ impl Editor {
         // Reset command buffer and command mode when opening editor
         self.command_buffer.clear();
         self.command_mode = false;
+    }
+    
+    /// Set the file name for the content being edited
+    pub fn set_file_name(&mut self, name: String) {
+        self.file_name = Some(name);
+    }
+    
+    /// Get the file name being edited
+    pub fn file_name(&self) -> Option<String> {
+        self.file_name.clone()
+    }
+    
+    /// Set maximum tokens for this editor session
+    pub fn set_max_tokens(&mut self, max_tokens: usize) {
+        self.max_tokens = max_tokens;
+    }
+    
+    /// Get the maximum token limit
+    pub fn max_tokens(&self) -> usize {
+        self.max_tokens
+    }
+    
+    /// Count tokens in the current content
+    pub fn token_count(&self) -> usize {
+        let content = self.content();
+        let text = content.join("\n");
+        count_tokens(&text)
     }
     
     /// Get the current content as lines

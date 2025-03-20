@@ -304,6 +304,16 @@ impl App {
                     // Set the editor content with the selected lines
                     self.editor.set_content(selected_lines);
                     
+                    // Set the file name for the editor (extract from the path)
+                    if let Some(file_path) = self.viewer.file_path() {
+                        if let Some(file_name) = file_path.file_name() {
+                            self.editor.set_file_name(file_name.to_string_lossy().to_string());
+                        }
+                    }
+                    
+                    // Set the max tokens from the viewer
+                    self.editor.set_max_tokens(self.viewer.max_tokens_per_chunk());
+                    
                     // Switch to editor mode
                     self.state.mode = AppMode::Editor;
                     
