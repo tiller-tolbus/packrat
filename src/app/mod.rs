@@ -451,7 +451,7 @@ impl App {
                         let is_modified = self.editor.is_modified();
                         
                         // Update viewer with the edited content if a selection exists
-                        if let Some((start, end)) = self.viewer.selection_range() {
+                        if let Some((_start, _end)) = self.viewer.selection_range() {
                             // Replace the selected lines with the edited content
                             if self.viewer.update_selected_content(edited_content) {
                                 // Save the updated content as a chunk
@@ -531,7 +531,7 @@ impl App {
                 let is_modified = self.editor.is_modified();
                 
                 // Update viewer with the edited content if a selection exists
-                if let Some((start, end)) = self.viewer.selection_range() {
+                if let Some((_start, _end)) = self.viewer.selection_range() {
                     // Replace the selected lines with the edited content
                     if self.viewer.update_selected_content(edited_content) {
                         // Save the updated content as a chunk

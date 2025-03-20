@@ -77,9 +77,11 @@ fn render_explorer_content(frame: &mut Frame, area: Rect, explorer: &Explorer) {
     // Create a title with a square character on both sides
     let title_text = "□ Packrat □";
     
+    // Center align the title
+    let centered_title = Line::from(title_text).centered();
+    
     let block = Block::default()
-        .title(title_text)
-        .title_alignment(ratatui::layout::Alignment::Center)
+        .title(centered_title)
         .borders(Borders::ALL);
     
     let inner_area = block.inner(area);
@@ -168,24 +170,24 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     // Add chunking status to title with consistent square character
     let chunking_percent = viewer.chunking_percentage();
     let title_text = if chunking_percent > 0.0 {
-        format!("□ {} [{:.1}% Chunked]", file_name, chunking_percent)
+        format!("□ {} [{:.1}% Chunked] □", file_name, chunking_percent)
     } else {
-        format!("□ {}", file_name)
+        format!("□ {} □", file_name)
     };
     
-    // Add token count for the current selection with a square at the end
+    // Add token count for the current selection with squares on both sides
     let token_info = if let Some(token_count) = viewer.selection_token_count() {
         let percentage = (token_count as f64 / viewer.max_tokens_per_chunk() as f64) * 100.0;
         
         // Format token info based on percentage
         if percentage >= 100.0 {
-            format!("TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
+            format!("□ TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
         } else {
-            format!("TOKENS: {} / {} ({}%) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
+            format!("□ TOKENS: {} / {} ({}%) □", token_count, viewer.max_tokens_per_chunk(), percentage as usize)
         }
     } else {
         let total = viewer.total_token_count();
-        format!("TOTAL TOKENS: {} □", total)
+        format!("□ TOTAL TOKENS: {} □", total)
     };
     
     // Style for token info
@@ -197,7 +199,6 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     
     // Left and right titles using ratatui's built-in title support
     let left_title = title_text;
-    let right_title = Line::from(Span::styled(token_info, token_style));
     
     // Set border color based on chunking progress
     let border_style = if chunking_percent >= 99.0 {
@@ -214,10 +215,11 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
         Style::default()
     };
     
-    // Use left-aligned and right-aligned titles on the same block
+    // Use left-aligned and right-aligned titles with Ratatui's alignment methods
     let left_aligned_title = Line::from(left_title).left_aligned();
-    let right_aligned_title = Line::from(right_title).right_aligned();
+    let right_aligned_title = Line::from(Span::styled(token_info, token_style)).right_aligned();
     
+    // Create the block with both titles
     let block = Block::default()
         .title(left_aligned_title)
         .title(right_aligned_title)
@@ -391,7 +393,7 @@ fn render_help_panel(frame: &mut Frame, mode: AppMode) {
     };
     
     // Create the help content based on current mode
-    let title = " Keyboard Shortcuts ";
+    let title = "□ Keyboard Shortcuts □";
     let content = match mode {
         AppMode::Explorer => {
             vec![
@@ -511,7 +513,7 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
     
     // Get the filename or use a default
     let file_name = editor.file_name().unwrap_or_else(|| "Untitled".to_string());
-    let left_title = format!("□ Editing: {}", file_name);
+    let left_title = format!("□ Editing: {} □", file_name);
     
     // Add token count for the text being edited
     let token_count = editor.token_count();
@@ -520,9 +522,9 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
     
     // Format token info based on percentage
     let token_info = if percentage >= 100.0 {
-        format!("TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, max_tokens, percentage as usize)
+        format!("□ TOKENS: {} / {} ({}% OVER LIMIT!) □", token_count, max_tokens, percentage as usize)
     } else {
-        format!("TOKENS: {} / {} ({}%) □", token_count, max_tokens, percentage as usize)
+        format!("□ TOKENS: {} / {} ({}%) □", token_count, max_tokens, percentage as usize)
     };
     
     // Style for token info
@@ -532,12 +534,11 @@ fn render_editor_mode(frame: &mut Frame, state: &AppState, editor: &mut Editor) 
         Style::default().fg(Color::Blue)
     };
     
-    let right_title = Line::from(Span::styled(token_info, token_style));
-    
-    // Use left-aligned and right-aligned titles on the same block
+    // Use left-aligned and right-aligned titles with Ratatui's alignment methods
     let left_aligned_title = Line::from(left_title).left_aligned();
-    let right_aligned_title = Line::from(right_title).right_aligned();
+    let right_aligned_title = Line::from(Span::styled(token_info, token_style)).right_aligned();
     
+    // Create the block with both titles
     let block = Block::default()
         .title(left_aligned_title)
         .title(right_aligned_title)
