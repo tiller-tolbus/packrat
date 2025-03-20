@@ -263,13 +263,11 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
                 Style::default().fg(Color::Reset)
             };
             
-            // Display text should now always be non-empty because we handled empty lines
-            // in the visible_content method
-            let display_text = line.as_str();
+            // Create the line's content span (may be empty but that's okay)
+            let content_span = Span::styled(line.as_str(), style);
             
-            // Create the line's content span
-            let content_span = Span::styled(display_text, style);
-            
+            // Create the appropriate line based on whether this is the cursor line
+            // and if the content is empty
             if is_cursor_line {
                 // Use different cursor styles based on mode
                 let (cursor_symbol, cursor_style) = if viewer.is_selection_mode() {
@@ -278,16 +276,30 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
                     (">", Style::default().bg(Color::DarkGray).fg(Color::White))
                 };
                 
-                Line::from(vec![
-                    Span::styled(format!("{} ", cursor_symbol), cursor_style),
-                    content_span
-                ])
+                if line.is_empty() {
+                    // For empty lines with cursor, just show the cursor
+                    Line::from(vec![
+                        Span::styled(format!("{} ", cursor_symbol), cursor_style)
+                    ])
+                } else {
+                    // For lines with content, show cursor and content
+                    Line::from(vec![
+                        Span::styled(format!("{} ", cursor_symbol), cursor_style),
+                        content_span
+                    ])
+                }
             } else {
                 // Non-cursor lines
-                Line::from(vec![
-                    Span::raw("  "), // Space where cursor would be
-                    content_span
-                ])
+                if line.is_empty() {
+                    // For empty lines without cursor, use a truly empty line
+                    Line::from("")
+                } else {
+                    // For non-empty lines, maintain spacing for alignment
+                    Line::from(vec![
+                        Span::raw("  "), // Space where cursor would be
+                        content_span
+                    ])
+                }
             }
         })
         .collect();
@@ -295,7 +307,7 @@ fn render_viewer_content(frame: &mut Frame, area: Rect, viewer: &Viewer) {
     // Create and render the paragraph widget
     let content_widget = Paragraph::new(content)
         .style(Style::default().fg(Color::Reset))
-        .wrap(Wrap { trim: false });
+        .wrap(Wrap { trim: true }); // Use trim=true to handle whitespace consistently
     
     frame.render_widget(content_widget, inner_area);
 }

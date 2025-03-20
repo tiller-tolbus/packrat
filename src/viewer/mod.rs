@@ -321,15 +321,8 @@ impl Viewer {
         let start = self.scroll_position;
         let end = (start + height).min(self.content.len());
         
-        // Return sliced content with special handling for empty lines
-        self.content[start..end].iter().map(|line| {
-            if line.is_empty() {
-                // Replace empty lines with a special marker that won't disappear
-                " ".to_string()  // Single space - will render consistently
-            } else {
-                line.clone()
-            }
-        }).collect()
+        // Return sliced content without modifying empty lines
+        self.content[start..end].to_vec()
     }
     
     /// Check if a line is empty or contains only whitespace
