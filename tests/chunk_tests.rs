@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::fs::File;
+use std::io::Write;
 use tempfile::tempdir;
 
 use packrat::viewer::Viewer;

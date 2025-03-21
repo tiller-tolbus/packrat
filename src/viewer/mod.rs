@@ -341,11 +341,11 @@ impl Viewer {
         // Join the selected lines into a single string
         let content = selected_content.join("\n");
         
-        // Create a new chunk (converting from 0-indexed to 1-indexed line numbers)
+        // Create a new chunk (Chunk uses 1-indexed line numbers)
         let chunk = Chunk::new(
             relative_path,
-            range.0 + 1, // Convert to 1-indexed
-            range.1 + 1, // Convert to 1-indexed
+            range.0 + 1, // Convert from 0-indexed (Viewer) to 1-indexed (Chunk)
+            range.1 + 1, // Convert from 0-indexed (Viewer) to 1-indexed (Chunk)
             content,
             was_edited,
         );
@@ -415,7 +415,7 @@ impl Viewer {
         // Get all chunks for this file from storage
         let file_chunks = chunk_storage.get_chunks_for_file(&relative_path);
         
-        // Extract and add the ranges (converting from 1-indexed from storage to 0-indexed)
+        // Extract and add the ranges (converting from 1-indexed in storage to 0-indexed used internally)
         for chunk in file_chunks {
             self.chunked_ranges.push((chunk.start_line - 1, chunk.end_line - 1));
         }

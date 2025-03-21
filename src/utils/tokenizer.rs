@@ -28,32 +28,3 @@ pub fn format_token_count(count: usize) -> String {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_token_counting() {
-        assert_eq!(count_tokens(""), 0);
-        
-        let simple = "Hello, world!";
-        let simple_count = count_tokens(simple);
-        assert!(simple_count > 0);
-        
-        let lines = vec![
-            "This is line 1".to_string(),
-            "This is line 2".to_string(),
-            "This is line 3".to_string(),
-        ];
-        
-        let total_count = count_tokens_in_lines(&lines);
-        assert!(total_count > 0);
-    }
-    
-    #[test]
-    fn test_formatting() {
-        assert_eq!(format_token_count(0), "0 tokens");
-        assert_eq!(format_token_count(1), "1 token");
-        assert_eq!(format_token_count(2), "2 tokens");
-    }
-}

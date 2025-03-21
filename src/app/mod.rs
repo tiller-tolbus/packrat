@@ -2,7 +2,7 @@ pub mod state;
 mod events;
 
 use anyhow::{Context, Result};
-use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use ratatui::crossterm::event::{self, Event, KeyModifiers};
 use ratatui::crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::crossterm::ExecutableCommand;
 use ratatui::backend::CrosstermBackend;
@@ -18,7 +18,7 @@ use packrat::editor::Editor;
 use crate::explorer::Explorer;
 use crate::ui::{render, UiSerializer};
 use crate::viewer::Viewer;
-use crate::storage::{ChunkStorage, Chunk};
+use crate::storage::ChunkStorage;
 
 /// Main application struct
 pub struct App {
