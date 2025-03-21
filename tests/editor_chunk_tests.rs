@@ -1,21 +1,21 @@
 use anyhow::Result;
 use packrat::editor::Editor;
 use packrat::viewer::Viewer;
-use packrat::utils::generate_chunk_filename;
+use packrat::storage::ChunkStorage;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::fs::{File};
+use std::io::Write;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
 /// Setup a test environment for chunk editing tests
-fn setup_test_environment() -> Result<(tempfile::TempDir, PathBuf, PathBuf)> {
+fn setup_test_environment() -> Result<(tempfile::TempDir, PathBuf, ChunkStorage)> {
     let temp_dir = tempdir()?;
     let root_path = temp_dir.path().to_path_buf();
     
-    // Create chunks directory
-    let chunks_dir = root_path.join("chunks");
-    fs::create_dir_all(&chunks_dir)?;
+    // Create a CSV file for chunks
+    let csv_path = root_path.join("chunks.csv");
+    let chunk_storage = ChunkStorage::new(&csv_path)?;
     
     // Create a test file
     let test_file_path = root_path.join("test_file.txt");
@@ -26,13 +26,13 @@ fn setup_test_environment() -> Result<(tempfile::TempDir, PathBuf, PathBuf)> {
         writeln!(test_file, "Line {}: This is test content for line {}.", i, i)?;
     }
     
-    Ok((temp_dir, root_path, chunks_dir))
+    Ok((temp_dir, root_path, chunk_storage))
 }
 
 #[test]
 fn test_edited_content_in_chunk() -> Result<()> {
     // Setup test environment
-    let (_temp_dir, root_path, chunks_dir) = setup_test_environment()?;
+    let (_temp_dir, root_path, mut chunk_storage) = setup_test_environment()?;
     let test_file_path = root_path.join("test_file.txt");
     
     // Create a viewer and open the test file
@@ -83,24 +83,24 @@ fn test_edited_content_in_chunk() -> Result<()> {
     assert!(updated_viewer_content[0].starts_with("EDITED: "), "Viewer content should be updated with edited text");
     
     // Save the chunk with edited content
-    let chunk_path = viewer.save_selection_as_chunk(&chunks_dir, &root_path)?;
+    let chunk_id = viewer.save_selection_as_chunk(&mut chunk_storage, &root_path)?;
     
-    // Verify the chunk file exists and has the expected name
-    assert!(chunk_path.exists(), "Chunk file should exist");
+    // Verify the chunk was saved (ID is returned)
+    assert!(!chunk_id.is_empty(), "Chunk ID should not be empty");
     
-    // Expected filename is test_file_txt_1-5.txt (1-indexed in filename)
-    let expected_filename = generate_chunk_filename(&test_file_path, &root_path, 0, 4);
-    assert_eq!(chunk_path.file_name().unwrap().to_string_lossy(), expected_filename);
+    // Get the saved chunk and verify its content
+    let chunks = chunk_storage.get_chunks();
+    assert_eq!(chunks.len(), 1, "Should have one chunk in storage");
     
-    // Read and verify the chunk content
-    let mut chunk_content = String::new();
-    File::open(&chunk_path)?.read_to_string(&mut chunk_content)?;
-    
-    // Check that the chunk contains the edited content
-    assert!(chunk_content.contains("EDITED: "), "Chunk should contain the edited content");
+    // Get the chunk and check its content
+    let chunk = &chunks[0];
+    assert!(chunk.content.contains("EDITED: "), "Chunk should contain the edited content");
     
     // Check that the viewer's has_edited_content flag is set
     assert!(viewer.has_edited_content(), "Viewer should mark content as edited");
+    
+    // Check that the chunk's edited flag is set
+    assert!(chunk.edited, "Chunk edited flag should be true");
     
     Ok(())
 }
@@ -108,7 +108,7 @@ fn test_edited_content_in_chunk() -> Result<()> {
 #[test]
 fn test_editor_to_chunk_workflow() -> Result<()> {
     // Setup test environment
-    let (_temp_dir, root_path, chunks_dir) = setup_test_environment()?;
+    let (_temp_dir, root_path, mut chunk_storage) = setup_test_environment()?;
     let test_file_path = root_path.join("test_file.txt");
     
     // Create a viewer and open the test file
@@ -182,32 +182,31 @@ fn test_editor_to_chunk_workflow() -> Result<()> {
     assert!(viewer.update_selected_content(edited_content.clone()));
     
     // Save the chunk with edited content
-    let chunk_path = viewer.save_selection_as_chunk(&chunks_dir, &root_path)?;
+    let _chunk_id = viewer.save_selection_as_chunk(&mut chunk_storage, &root_path)?;
     
-    // Verify the chunk file exists
-    assert!(chunk_path.exists(), "Chunk file should exist");
+    // Get the saved chunk
+    let chunks = chunk_storage.get_chunks();
+    assert_eq!(chunks.len(), 1, "Should have one chunk in storage");
     
-    // Read and verify the chunk content
-    let mut chunk_content = String::new();
-    File::open(&chunk_path)?.read_to_string(&mut chunk_content)?;
+    // Verify the chunk content
+    let chunk = &chunks[0];
     
     // Check that the chunk contains the new content
-    assert!(chunk_content.contains("This is completely new line 1"), "Chunk should contain the new content");
-    assert!(chunk_content.contains("This is completely new line 2"), "Chunk should contain the new content");
-    assert!(chunk_content.contains("This is completely new line 3"), "Chunk should contain the new content");
+    assert!(chunk.content.contains("This is completely new line 1"), "Chunk should contain the new content");
+    assert!(chunk.content.contains("This is completely new line 2"), "Chunk should contain the new content");
+    assert!(chunk.content.contains("This is completely new line 3"), "Chunk should contain the new content");
     
     // Final check - load content in a new viewer to ensure the chunk can be properly loaded
     let mut new_viewer = Viewer::new();
     new_viewer.open_file(&test_file_path)?;
-    new_viewer.load_chunked_ranges(&chunks_dir, &root_path)?;
+    new_viewer.load_chunked_ranges(&chunk_storage, &root_path)?;
     
     // Verify the chunked ranges are loaded correctly
     let chunked_ranges = new_viewer.chunked_ranges();
     assert_eq!(chunked_ranges.len(), 1, "Should have one chunked range");
     
-    // Check that the line range matches the original selection
-    let has_range = chunked_ranges.contains(&(9, 14)) || chunked_ranges.contains(&(14, 9));
-    assert!(has_range, "Should have chunked range for lines 10-15");
+    // Check that the line range matches the original selection (using 1-indexed values)
+    assert_eq!(chunked_ranges[0], (10, 15), "Should have chunked range for lines 10-15");
     
     Ok(())
 }

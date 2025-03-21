@@ -1,8 +1,9 @@
 use anyhow::{Context, Result, anyhow};
-use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use crate::utils::{generate_chunk_filename, count_tokens, count_tokens_in_lines};
+use crate::utils::{count_tokens, count_tokens_in_lines};
+use crate::storage::{ChunkStorage, Chunk};
 
 /// Text viewer component
 pub struct Viewer {
@@ -306,8 +307,8 @@ impl Viewer {
     
     // Removed unused function: is_whitespace_line
     
-    /// Save current selection as a chunk
-    pub fn save_selection_as_chunk(&mut self, chunk_dir: &Path, root_dir: &Path) -> Result<PathBuf> {
+    /// Save current selection as a chunk using CSV storage
+    pub fn save_selection_as_chunk(&mut self, chunk_storage: &mut ChunkStorage, root_dir: &Path) -> Result<String> {
         // Get selected range
         let range = self.selection_range().ok_or_else(|| anyhow!("No text selected"))?;
         
@@ -317,15 +318,14 @@ impl Viewer {
         }
         
         // Check for overlap with existing chunks
-        let _has_overlap = self.check_chunk_overlap(range.0, range.1);
+        let has_overlap = self.check_chunk_overlap(range.0, range.1);
         
         // Extract the lines from the current in-memory content (which may have been edited)
         let selected_content = &self.content[range.0..=range.1];
         
-        // Create chunk filename
+        // Get file path and make it relative to root if needed
         let file_path = self.file_path().ok_or_else(|| anyhow!("No file opened"))?;
-        // We don't use this value directly, only for creating chunk filename through the helper
-        let _relative_path = if file_path.starts_with(root_dir) {
+        let relative_path = if file_path.starts_with(root_dir) {
             match file_path.strip_prefix(root_dir) {
                 Ok(rel_path) => rel_path.to_path_buf(),
                 Err(_) => file_path.to_path_buf(),
@@ -335,33 +335,36 @@ impl Viewer {
         };
         
         // Check if content has been edited
-        let _was_edited = self.has_edited_content;
+        let was_edited = self.has_edited_content;
         
-        // Everything we need is in the filename - no need for separate metadata
+        // Join the selected lines into a single string
+        let content = selected_content.join("\n");
         
-        // Generate chunk filename
-        let chunk_filename = generate_chunk_filename(file_path, root_dir, range.0, range.1);
-        let chunk_path = chunk_dir.join(chunk_filename);
+        // Create a new chunk (converting from 0-indexed to 1-indexed line numbers)
+        let chunk = Chunk::new(
+            relative_path,
+            range.0 + 1, // Convert to 1-indexed
+            range.1 + 1, // Convert to 1-indexed
+            content,
+            was_edited,
+        );
         
-        // Ensure chunk directory exists
-        fs::create_dir_all(chunk_dir)?;
+        // Add the chunk to storage
+        chunk_storage.add_chunk(chunk.clone())?;
         
-        // Write chunk to file
-        let mut file = File::create(&chunk_path)?;
-        for line in selected_content {
-            writeln!(file, "{}", line)?;
-        }
+        // Add to chunked ranges (converting to 1-indexed)
+        self.chunked_ranges.push((range.0 + 1, range.1 + 1));
         
-        // We're not using metadata files anymore - the filename contains all we need
-        
-        // Add to chunked ranges
-        self.chunked_ranges.push(range);
-        
-        // Return chunk path and overlap status
-        Ok(chunk_path)
+        // Return the chunk ID and overlap status
+        Ok(format!("{}{}", 
+            chunk.id, 
+            if has_overlap { " (Warning: Overlaps with existing chunks)" } else { "" }
+        ))
     }
     
     /// Check if a range overlaps with existing chunks
+    /// 
+    /// Note: This function expects 1-indexed values for line numbers
     pub fn check_chunk_overlap(&self, start_line: usize, end_line: usize) -> bool {
         for (chunk_start, chunk_end) in &self.chunked_ranges {
             // Check for any overlap
@@ -373,6 +376,8 @@ impl Viewer {
     }
     
     /// Check if a line is part of a saved chunk
+    /// 
+    /// Note: This function expects 1-indexed values for line numbers
     pub fn is_line_chunked(&self, line_number: usize) -> bool {
         self.chunked_ranges.iter().any(|(start, end)| {
             line_number >= *start && line_number <= *end
@@ -385,8 +390,8 @@ impl Viewer {
         &self.chunked_ranges
     }
     
-    /// Load chunked ranges by parsing chunk filenames
-    pub fn load_chunked_ranges(&mut self, chunk_dir: &Path, root_dir: &Path) -> Result<()> {
+    /// Load chunked ranges from CSV storage
+    pub fn load_chunked_ranges(&mut self, chunk_storage: &ChunkStorage, root_dir: &Path) -> Result<()> {
         // Only proceed if we have a file path
         let file_path = match &self.file_path {
             Some(path) => path.clone(),
@@ -396,13 +401,7 @@ impl Viewer {
         // Clear existing ranges
         self.chunked_ranges.clear();
         
-        // Exit early if chunk directory doesn't exist
-        if !chunk_dir.exists() {
-            return Ok(());
-        }
-        
-        // Generate the file prefix we're looking for
-        // First convert the path to be relative to the root
+        // Get the relative path for matching with storage
         let relative_path = if file_path.starts_with(root_dir) {
             match file_path.strip_prefix(root_dir) {
                 Ok(rel_path) => rel_path.to_path_buf(),
@@ -412,55 +411,12 @@ impl Viewer {
             file_path.clone()
         };
         
-        // Convert path separators and special characters to underscores (same as in generate_chunk_filename)
-        let path_str = relative_path.to_string_lossy();
-        let sanitized_path = path_str
-            .replace(['/', '\\'], "_") // Replace path separators with underscores
-            .replace(['.', ' ', '-', ':', '+'], "_"); // Replace other special characters
+        // Get all chunks for this file from storage
+        let file_chunks = chunk_storage.get_chunks_for_file(&relative_path);
         
-        // Remove leading underscore if present (from absolute paths)
-        let sanitized_path = sanitized_path.trim_start_matches('_');
-        
-        // Handle empty path
-        let file_prefix = if sanitized_path.is_empty() {
-            "unnamed_file".to_string()
-        } else {
-            sanitized_path.to_string()
-        };
-        
-        // Now check all files in the chunk directory
-        for entry in fs::read_dir(chunk_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            
-            // Only look at .txt files
-            if path.extension().map_or(false, |ext| ext == "txt") {
-                // Get the filename as a string
-                let filename = path.file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("");
-                
-                // Check if the filename starts with our prefix
-                if filename.starts_with(&file_prefix) {
-                    // The filename format is: path_from_root_converted_to_underscores_START-END.txt
-                    // Extract the START-END part
-                    if let Some(range_part) = filename.strip_prefix(&format!("{}_", file_prefix)) {
-                        if let Some(range_part) = range_part.strip_suffix(".txt") {
-                            // Parse the range values (START-END)
-                            if let Some((start_str, end_str)) = range_part.split_once('-') {
-                                if let (Ok(start), Ok(end)) = (start_str.parse::<usize>(), end_str.parse::<usize>()) {
-                                    // Adjust from 1-indexed (in filename) to 0-indexed (in code)
-                                    let start = start.saturating_sub(1);
-                                    let end = end.saturating_sub(1);
-                                    
-                                    // Add the range
-                                    self.chunked_ranges.push((start, end));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        // Extract and add the ranges (already 1-indexed from storage)
+        for chunk in file_chunks {
+            self.chunked_ranges.push((chunk.start_line, chunk.end_line));
         }
         
         Ok(())
@@ -476,7 +432,11 @@ impl Viewer {
         let mut chunked_lines = vec![false; self.content.len()];
         
         for (start, end) in &self.chunked_ranges {
-            for i in *start..=*end {
+            // Convert 1-indexed to 0-indexed for array access
+            let start_idx = start.saturating_sub(1);
+            let end_idx = end.saturating_sub(1).min(chunked_lines.len() - 1);
+            
+            for i in start_idx..=end_idx {
                 if i < chunked_lines.len() {
                     chunked_lines[i] = true;
                 }
@@ -520,8 +480,12 @@ impl Viewer {
                 for i in 0..self.chunked_ranges.len() {
                     let (chunk_start, chunk_end) = self.chunked_ranges[i];
                     
+                    // Convert to 0-indexed for comparison with start/end (which are 0-indexed)
+                    let chunk_start_0idx = chunk_start.saturating_sub(1); 
+                    let chunk_end_0idx = chunk_end.saturating_sub(1);
+                    
                     // If the chunk is entirely after the edit, shift it
-                    if chunk_start > end {
+                    if chunk_start_0idx > end {
                         self.chunked_ranges[i] = (
                             (chunk_start as isize + line_diff) as usize,
                             (chunk_end as isize + line_diff) as usize
@@ -529,7 +493,7 @@ impl Viewer {
                     }
                     // If the chunk overlaps with the edit, we might need more complex logic
                     // For now, we'll consider those chunks invalid and remove them
-                    else if chunk_end >= start {
+                    else if chunk_end_0idx >= start {
                         // Mark for removal
                         self.chunked_ranges[i] = (0, 0);
                     }

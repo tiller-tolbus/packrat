@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use walkdir::WalkDir;
+use crate::storage::ChunkStorage;
 
 /// Representation of a directory entry
 #[derive(Clone)]
@@ -53,105 +54,34 @@ impl Explorer {
         Ok(explorer)
     }
     
-    /// Initialize chunking progress data by scanning chunks directory
-    pub fn init_chunking_progress(&mut self, chunk_dir: &Path) -> Result<()> {
-        // If the chunks directory doesn't exist, there are no chunks
-        if !chunk_dir.exists() {
+    /// Initialize chunking progress data from CSV storage
+    pub fn init_chunking_progress(&mut self, chunk_storage: &ChunkStorage) -> Result<()> {
+        // Get all chunks from storage
+        let chunks = chunk_storage.get_chunks();
+        
+        // If there are no chunks, nothing to do
+        if chunks.is_empty() {
             return Ok(());
         }
         
-        // Create a map of file path patterns to their chunk ranges
-        let mut file_chunks: HashMap<String, Vec<(usize, usize)>> = HashMap::new();
+        // Process each file path in the chunks and build a map of file paths to lines
+        let mut files_to_process: HashMap<PathBuf, Vec<(usize, usize)>> = HashMap::new();
         
-        // Iterate over all files in the chunks directory
-        for entry in std::fs::read_dir(chunk_dir)? {
-            let entry = entry?;
-            let path = entry.path();
+        for chunk in chunks {
+            // Get the file path and range
+            let file_path = chunk.file_path.clone();
+            let start_line = chunk.start_line;
+            let end_line = chunk.end_line;
             
-            // Skip non-txt chunk files
-            if path.extension().map_or(false, |ext| ext == "txt") {
-                let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
-                
-                // Parse the filename to extract file path and chunk range
-                // Format is: path_from_root_converted_to_underscores_START-END.txt
-                if let Some(underscore_pos) = filename.rfind('_') {
-                    if let Some(range_part) = filename.get(underscore_pos + 1..).and_then(|s| s.strip_suffix(".txt")) {
-                        if let Some((start_str, end_str)) = range_part.split_once('-') {
-                            if let (Ok(start), Ok(end)) = (start_str.parse::<usize>(), end_str.parse::<usize>()) {
-                                // Adjust from 1-indexed (in filename) to 0-indexed
-                                let start = start.saturating_sub(1);
-                                let end = end.saturating_sub(1);
-                                
-                                // Now we need to convert the path part back to a real path
-                                let path_part = &filename[0..underscore_pos];
-                                
-                                // Add this range to the file's chunks
-                                file_chunks.entry(path_part.to_string())
-                                    .or_insert_with(Vec::new)
-                                    .push((start, end));
-                            }
-                        }
-                    }
-                }
-            }
+            // Add this range to the file's chunks
+            files_to_process
+                .entry(file_path)
+                .or_insert_with(Vec::new)
+                .push((start_line, end_line));
         }
         
-        // Process each file pattern and update chunking progress
-        for (path_pattern, ranges) in file_chunks {
-            self.calculate_chunking_progress_for_pattern(&path_pattern, ranges)?;
-        }
-        
-        // Refresh entries with the updated chunking progress
-        self.load_entries()?;
-        
-        Ok(())
-    }
-    
-    /// Calculate chunking progress for a file matching the given pattern
-    fn calculate_chunking_progress_for_pattern(&mut self, path_pattern: &str, ranges: Vec<(usize, usize)>) -> Result<()> {
-        // Find the file that matches this pattern
-        let mut matched_files = Vec::new();
-        
-        for entry in walkdir::WalkDir::new(&self.root_dir) {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            
-            // Only consider files
-            if !entry.file_type().is_file() {
-                continue;
-            }
-            
-            let path = entry.path();
-            
-            // Skip if it's a chunk file
-            if path.to_string_lossy().contains("chunks/") {
-                continue;
-            }
-            
-            // Get the relative path and sanitize it
-            let relative_path = match path.strip_prefix(&self.root_dir) {
-                Ok(rel_path) => rel_path,
-                Err(_) => continue,
-            };
-            
-            // Convert to string and sanitize the same way the chunk filename was created
-            let path_str = relative_path.to_string_lossy();
-            let sanitized_path = path_str
-                .replace(['/', '\\'], "_")
-                .replace(['.', ' ', '-', ':', '+'], "_")
-                .trim_start_matches('_')
-                .to_string();
-            
-            // Check if this file matches the pattern
-            if sanitized_path == path_pattern {
-                matched_files.push(path.to_path_buf());
-            }
-        }
-        
-        // Update chunking progress for each matched file
-        for file_path in matched_files {
+        // Calculate the chunking progress for each file
+        for (file_path, ranges) in files_to_process.iter() {
             // Read the file to count lines
             if let Ok(content) = std::fs::read_to_string(&file_path) {
                 let total_lines = content.lines().count();
@@ -160,8 +90,8 @@ impl Explorer {
                     // Count unique chunked lines using a boolean vector
                     let mut chunked_lines = vec![false; total_lines];
                     
-                    for (start, end) in &ranges {
-                        for i in *start..=(*end).min(total_lines - 1) {
+                    for &(start, end) in ranges {
+                        for i in start..=end.min(total_lines - 1) {
                             chunked_lines[i] = true;
                         }
                     }
@@ -176,8 +106,14 @@ impl Explorer {
             }
         }
         
+        // Refresh entries with the updated chunking progress
+        self.load_entries()?;
+        
         Ok(())
     }
+    
+    // The previous calculate_chunking_progress_for_pattern method is no longer needed
+    // as we now directly process chunks from the CSV storage
     
     /// Reload entries in the current directory
     fn load_entries(&mut self) -> Result<()> {

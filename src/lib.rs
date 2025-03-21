@@ -4,3 +4,4 @@ pub mod config;
 pub mod editor;
 pub mod utils;
 pub mod viewer;
+pub mod storage;

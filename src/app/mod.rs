@@ -18,6 +18,7 @@ use packrat::editor::Editor;
 use crate::explorer::Explorer;
 use crate::ui::{render, UiSerializer};
 use crate::viewer::Viewer;
+use crate::storage::{ChunkStorage, Chunk};
 
 /// Main application struct
 pub struct App {
@@ -35,6 +36,8 @@ pub struct App {
     editor: Editor,
     /// Application configuration
     config: Config,
+    /// Chunk storage
+    chunk_storage: ChunkStorage,
 }
 
 impl App {
@@ -67,13 +70,13 @@ impl App {
                 .with_context(|| format!("Failed to create debug directory: {:?}", config.debug_dir))?;
         }
         
-        // Ensure chunk directory exists
-        let chunk_dir = config.absolute_chunk_dir();
-        fs::create_dir_all(&chunk_dir)
-            .with_context(|| format!("Failed to create chunk directory: {:?}", chunk_dir))?;
+        // Initialize chunk storage
+        let chunk_file = config.absolute_chunk_file();
+        let chunk_storage = ChunkStorage::new(&chunk_file)
+            .with_context(|| format!("Failed to initialize chunk storage at: {:?}", chunk_file))?;
         
         // Initialize chunking progress for files in the explorer
-        if let Err(e) = explorer.init_chunking_progress(&chunk_dir) {
+        if let Err(e) = explorer.init_chunking_progress(&chunk_storage) {
             eprintln!("Warning: Failed to initialize chunking progress: {}", e);
         }
 
@@ -85,6 +88,7 @@ impl App {
             viewer,
             editor,
             config,
+            chunk_storage,
         })
     }
 
@@ -249,8 +253,7 @@ impl App {
                         eprintln!("Error opening file: {}", e);
                     } else {
                         // Load any existing chunk data
-                        let chunk_dir = self.config.absolute_chunk_dir();
-                        if let Err(e) = self.viewer.load_chunked_ranges(&chunk_dir, &self.explorer.root_dir()) {
+                        if let Err(e) = self.viewer.load_chunked_ranges(&self.chunk_storage, &self.explorer.root_dir()) {
                             self.state.set_debug_message(format!("Error loading chunks: {}", e), 3);
                         }
                         
@@ -337,10 +340,9 @@ impl App {
                         );
                     }
                     
-                    // Ensure chunks directory exists
-                    let chunk_dir = self.config.absolute_chunk_dir();
-                    match self.viewer.save_selection_as_chunk(&chunk_dir, &self.explorer.root_dir()) {
-                        Ok(path) => {
+                    // Save the chunk to CSV storage
+                    match self.viewer.save_selection_as_chunk(&mut self.chunk_storage, &self.explorer.root_dir()) {
+                        Ok(chunk_id) => {
                             // Clear selection after saving
                             self.viewer.clear_selection();
                             let percent = self.viewer.chunking_percentage();
@@ -352,14 +354,14 @@ impl App {
                             
                             if has_overlap {
                                 self.state.set_debug_message(
-                                    format!("Chunk saved with overlaps to: {} ({:.1}% chunked)", 
-                                             path.display(), percent), 
+                                    format!("Chunk saved with overlaps (ID: {}) ({:.1}% chunked)", 
+                                             chunk_id, percent), 
                                     3
                                 );
                             } else {
                                 self.state.set_debug_message(
-                                    format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                             path.display(), percent), 
+                                    format!("Chunk saved (ID: {}) ({:.1}% chunked)", 
+                                             chunk_id, percent), 
                                     3
                                 );
                             }
@@ -468,9 +470,8 @@ impl App {
                             // Replace the selected lines with the edited content
                             if self.viewer.update_selected_content(edited_content) {
                                 // Save the updated content as a chunk
-                                let chunk_dir = self.config.absolute_chunk_dir();
-                                match self.viewer.save_selection_as_chunk(&chunk_dir, &self.explorer.root_dir()) {
-                                    Ok(path) => {
+                                match self.viewer.save_selection_as_chunk(&mut self.chunk_storage, &self.explorer.root_dir()) {
+                                    Ok(chunk_id) => {
                                         // Clear selection after saving
                                         self.viewer.clear_selection();
                                         let percent = self.viewer.chunking_percentage();
@@ -482,14 +483,14 @@ impl App {
                                         
                                         if is_modified {
                                             self.state.set_debug_message(
-                                                format!("Edited content saved to: {} ({:.1}% chunked)", 
-                                                         path.display(), percent), 
+                                                format!("Edited content saved (ID: {}) ({:.1}% chunked)", 
+                                                         chunk_id, percent), 
                                                 3
                                             );
                                         } else {
                                             self.state.set_debug_message(
-                                                format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                                         path.display(), percent), 
+                                                format!("Chunk saved (ID: {}) ({:.1}% chunked)", 
+                                                         chunk_id, percent), 
                                                 3
                                             );
                                         }
@@ -548,23 +549,22 @@ impl App {
                     // Replace the selected lines with the edited content
                     if self.viewer.update_selected_content(edited_content) {
                         // Save the updated content as a chunk
-                        let chunk_dir = self.config.absolute_chunk_dir();
-                        match self.viewer.save_selection_as_chunk(&chunk_dir, &self.explorer.root_dir()) {
-                            Ok(path) => {
+                        match self.viewer.save_selection_as_chunk(&mut self.chunk_storage, &self.explorer.root_dir()) {
+                            Ok(chunk_id) => {
                                 // Clear selection after saving
                                 self.viewer.clear_selection();
                                 let percent = self.viewer.chunking_percentage();
                                 
                                 if is_modified {
                                     self.state.set_debug_message(
-                                        format!("Edited content saved to: {} ({:.1}% chunked)", 
-                                                 path.display(), percent), 
+                                        format!("Edited content saved (ID: {}) ({:.1}% chunked)", 
+                                                 chunk_id, percent), 
                                         3
                                     );
                                 } else {
                                     self.state.set_debug_message(
-                                        format!("Chunk saved to: {} ({:.1}% chunked)", 
-                                                 path.display(), percent), 
+                                        format!("Chunk saved (ID: {}) ({:.1}% chunked)", 
+                                                 chunk_id, percent), 
                                         3
                                     );
                                 }

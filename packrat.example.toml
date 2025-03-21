@@ -1,9 +1,10 @@
 # Packrat Configuration File
 # Copy this to packrat.toml in your project directory or to your config directory
 
-# Directory where chunks are stored
+# CSV file for storing chunks
 # Can be relative to current directory or absolute path
-chunk_dir = "chunks"
+# Previously this was a directory (chunk_dir), now it's a single CSV file
+chunk_file = "chunks.csv"
 
 # Maximum number of tokens per chunk (8192 = ~6K words)
 # Claude has a context window of 200K, so adjust based on needs

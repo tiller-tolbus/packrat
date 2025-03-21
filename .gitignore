@@ -4,11 +4,11 @@
 /debug/*
 !/debug/.gitkeep
 
-/chunks/*
+chunks.csv
 
 # Ignore reference files directory
 /.refs/
 
 # Ignore AI instructions
-/CLAUDE.md
-/todo.txt
+CLAUDE.md
+todo.txt

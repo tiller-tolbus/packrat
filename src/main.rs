@@ -4,6 +4,7 @@ pub mod explorer;
 mod viewer;
 mod config;
 mod utils;
+mod storage;
 
 use anyhow::{Result, Context};
 use std::env;
