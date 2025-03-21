@@ -77,13 +77,13 @@ fn test_basic_chunk_saving() -> Result<()> {
     let chunked_ranges = viewer.chunked_ranges();
     assert_eq!(chunked_ranges.len(), 1, "Should have one chunked range");
     
-    // The range should be (1, 4) for lines 1-4 (1-indexed)
-    assert_eq!(chunked_ranges[0], (1, 4), "Chunked range should be (1, 4)");
+    // The range should be (0, 3) for lines 1-4 (0-indexed)
+    assert_eq!(chunked_ranges[0], (0, 3), "Chunked range should be (0, 3)");
     
-    // Verify that the lines are marked as chunked (using 1-indexed values)
-    assert!(viewer.is_line_chunked(2), "Line 2 should be chunked");
-    assert!(viewer.is_line_chunked(3), "Line 3 should be chunked");
-    assert!(viewer.is_line_chunked(4), "Line 4 should be chunked");
+    // Verify that the lines are marked as chunked (using 0-indexed values)
+    assert!(viewer.is_line_chunked(1), "Line 2 should be chunked");
+    assert!(viewer.is_line_chunked(2), "Line 3 should be chunked");
+    assert!(viewer.is_line_chunked(3), "Line 4 should be chunked");
     
     Ok(())
 }
@@ -144,8 +144,8 @@ fn test_multiple_chunks_saving() -> Result<()> {
     assert_eq!(chunked_ranges.len(), 2, "Should have two chunked ranges");
     
     // Verify chunked ranges in viewer match what we expect
-    let first_range = (1, 3); // Lines 1-3 (1-indexed)
-    let second_range = (10, 12); // Lines 10-12 (1-indexed)
+    let first_range = (0, 2); // Lines 1-3 (0-indexed)
+    let second_range = (9, 11); // Lines 10-12 (0-indexed)
     assert!(chunked_ranges.contains(&first_range), 
         "Should have chunked range {:?} for lines 1-3", first_range);
     assert!(chunked_ranges.contains(&second_range), 
@@ -236,12 +236,12 @@ fn test_chunking_overlap_detection() -> Result<()> {
         viewer.cursor_down(); // Move to line 12 (index 11)
     }
     
-    // Check for overlap (using 1-indexed values)
-    let has_overlap = viewer.check_chunk_overlap(8, 12);
+    // Check for overlap (using 0-indexed values)
+    let has_overlap = viewer.check_chunk_overlap(7, 11);
     assert!(has_overlap, "Should detect overlap with existing chunk");
     
-    // Try a non-overlapping range (using 1-indexed values)
-    let has_overlap = viewer.check_chunk_overlap(16, 19);
+    // Try a non-overlapping range (using 0-indexed values)
+    let has_overlap = viewer.check_chunk_overlap(15, 18);
     assert!(!has_overlap, "Should not detect overlap with non-overlapping range");
     
     // Verify the chunk was saved properly
@@ -306,8 +306,8 @@ fn test_loading_chunk_ranges() -> Result<()> {
     // Should load both chunks
     assert_eq!(new_viewer.chunked_ranges().len(), 2, "Should have loaded both chunks");
     
-    // Verify the expected ranges are loaded (1-indexed)
-    let expected_ranges = [(1, 4), (15, 17)];
+    // Verify the expected ranges are loaded (0-indexed)
+    let expected_ranges = [(0, 3), (14, 16)];
     let loaded_ranges = new_viewer.chunked_ranges();
     
     // Check that each expected range is in the loaded ranges

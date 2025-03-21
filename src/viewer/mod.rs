@@ -321,6 +321,7 @@ impl Viewer {
         let has_overlap = self.check_chunk_overlap(range.0, range.1);
         
         // Extract the lines from the current in-memory content (which may have been edited)
+        // Make sure to include both start and end indices inclusively
         let selected_content = &self.content[range.0..=range.1];
         
         // Get file path and make it relative to root if needed
@@ -352,8 +353,8 @@ impl Viewer {
         // Add the chunk to storage
         chunk_storage.add_chunk(chunk.clone())?;
         
-        // Add to chunked ranges (converting to 1-indexed)
-        self.chunked_ranges.push((range.0 + 1, range.1 + 1));
+        // Add to chunked ranges (keeping 0-indexed internally)
+        self.chunked_ranges.push((range.0, range.1));
         
         // Return the chunk ID and overlap status
         Ok(format!("{}{}", 
@@ -364,7 +365,7 @@ impl Viewer {
     
     /// Check if a range overlaps with existing chunks
     /// 
-    /// Note: This function expects 1-indexed values for line numbers
+    /// Note: This function expects 0-indexed values for line numbers
     pub fn check_chunk_overlap(&self, start_line: usize, end_line: usize) -> bool {
         for (chunk_start, chunk_end) in &self.chunked_ranges {
             // Check for any overlap
@@ -377,7 +378,7 @@ impl Viewer {
     
     /// Check if a line is part of a saved chunk
     /// 
-    /// Note: This function expects 1-indexed values for line numbers
+    /// Note: This function expects 0-indexed values for line numbers
     pub fn is_line_chunked(&self, line_number: usize) -> bool {
         self.chunked_ranges.iter().any(|(start, end)| {
             line_number >= *start && line_number <= *end
@@ -414,9 +415,9 @@ impl Viewer {
         // Get all chunks for this file from storage
         let file_chunks = chunk_storage.get_chunks_for_file(&relative_path);
         
-        // Extract and add the ranges (already 1-indexed from storage)
+        // Extract and add the ranges (converting from 1-indexed from storage to 0-indexed)
         for chunk in file_chunks {
-            self.chunked_ranges.push((chunk.start_line, chunk.end_line));
+            self.chunked_ranges.push((chunk.start_line - 1, chunk.end_line - 1));
         }
         
         Ok(())
@@ -432,9 +433,10 @@ impl Viewer {
         let mut chunked_lines = vec![false; self.content.len()];
         
         for (start, end) in &self.chunked_ranges {
-            // Convert 1-indexed to 0-indexed for array access
-            let start_idx = start.saturating_sub(1);
-            let end_idx = end.saturating_sub(1).min(chunked_lines.len() - 1);
+            // Ranges are already 0-indexed
+            let start_idx = *start;
+            let max_idx = chunked_lines.len() - 1;
+            let end_idx = (*end).min(max_idx);
             
             for i in start_idx..=end_idx {
                 if i < chunked_lines.len() {
@@ -481,8 +483,9 @@ impl Viewer {
                     let (chunk_start, chunk_end) = self.chunked_ranges[i];
                     
                     // Convert to 0-indexed for comparison with start/end (which are 0-indexed)
-                    let chunk_start_0idx = chunk_start.saturating_sub(1); 
-                    let chunk_end_0idx = chunk_end.saturating_sub(1);
+                    // Ranges are already 0-indexed
+                    let chunk_start_0idx = chunk_start; 
+                    let chunk_end_0idx = chunk_end;
                     
                     // If the chunk is entirely after the edit, shift it
                     if chunk_start_0idx > end {

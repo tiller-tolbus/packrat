@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "TUI application for interactively chunking text files"
 authors = ["Gary Lieberman <tiller.tolbus@gmail.com>"]
+default-run = "packrat"
 
 [dependencies]
 # TUI and event handling

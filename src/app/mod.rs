@@ -340,9 +340,25 @@ impl App {
                         );
                     }
                     
+                    // Store the selection range to reference after saving
+                    let selection_range = self.viewer.selection_range();
+                    
                     // Save the chunk to CSV storage
                     match self.viewer.save_selection_as_chunk(&mut self.chunk_storage, &self.explorer.root_dir()) {
                         Ok(chunk_id) => {
+                            // Set cursor to the end of the saved chunk - makes it easier to select next block
+                            if let Some((_, end)) = selection_range {
+                                let next_line = (end + 1).min(self.viewer.content().len().saturating_sub(1));
+                                
+                                // Move cursor to the next line after the saved chunk
+                                if next_line > end {
+                                    // Position cursor at the next line
+                                    for _ in 0..(next_line - self.viewer.cursor_position()) {
+                                        self.viewer.cursor_down();
+                                    }
+                                }
+                            }
+                            
                             // Clear selection after saving
                             self.viewer.clear_selection();
                             let percent = self.viewer.chunking_percentage();
@@ -546,11 +562,27 @@ impl App {
                 
                 // Update viewer with the edited content if a selection exists
                 if let Some((_start, _end)) = self.viewer.selection_range() {
+                    // Store the selection range to reference after saving
+                    let selection_range = self.viewer.selection_range();
+                    
                     // Replace the selected lines with the edited content
                     if self.viewer.update_selected_content(edited_content) {
                         // Save the updated content as a chunk
                         match self.viewer.save_selection_as_chunk(&mut self.chunk_storage, &self.explorer.root_dir()) {
                             Ok(chunk_id) => {
+                                // Set cursor to the end of the saved chunk - makes it easier to select next block
+                                if let Some((_, end)) = selection_range {
+                                    let next_line = (end + 1).min(self.viewer.content().len().saturating_sub(1));
+                                    
+                                    // Move cursor to the next line after the saved chunk
+                                    if next_line > end {
+                                        // Position cursor at the next line
+                                        for _ in 0..(next_line - self.viewer.cursor_position()) {
+                                            self.viewer.cursor_down();
+                                        }
+                                    }
+                                }
+                                
                                 // Clear selection after saving
                                 self.viewer.clear_selection();
                                 let percent = self.viewer.chunking_percentage();

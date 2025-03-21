@@ -205,8 +205,8 @@ fn test_editor_to_chunk_workflow() -> Result<()> {
     let chunked_ranges = new_viewer.chunked_ranges();
     assert_eq!(chunked_ranges.len(), 1, "Should have one chunked range");
     
-    // Check that the line range matches the original selection (using 1-indexed values)
-    assert_eq!(chunked_ranges[0], (10, 15), "Should have chunked range for lines 10-15");
+    // Check that the line range matches the original selection (using 0-indexed values)
+    assert_eq!(chunked_ranges[0], (9, 14), "Should have chunked range for lines 10-15");
     
     Ok(())
 }
