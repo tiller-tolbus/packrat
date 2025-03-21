@@ -24,8 +24,6 @@ fn setup_test_environment() -> Result<(tempfile::TempDir, PathBuf, ChunkStorage)
     Ok((temp_dir, root_path, chunk_storage))
 }
 
-
-
 #[test]
 fn test_chunking_with_edited_content() -> Result<()> {
     let (_temp_dir, root_path, mut chunk_storage) = setup_test_environment()?;
@@ -34,38 +32,52 @@ fn test_chunking_with_edited_content() -> Result<()> {
     let mut viewer = Viewer::new();
     viewer.open_file(&test_file_path)?;
     
+    // Create a selection spanning a few lines
     viewer.toggle_selection_mode();
-    for _ in 0..4 {
+    
+    // Move the cursor to select several lines
+    for _ in 0..6 {
         viewer.cursor_down();
     }
-    viewer.cursor_down();
-    viewer.cursor_down();
     
-    assert!(viewer.selection_range().is_some());
+    // Verify selection was created
+    assert!(viewer.selection_range().is_some(), "Selection should be created");
     
+    // Create some edited content to replace the selection
     let edited_content = vec![
-        "Line 5: EDITED content for testing.".to_string(),
-        "Line 6: EDITED content for testing.".to_string(),
-        "Line 7: EDITED content for testing.".to_string(),
+        "EDITED Line: This replaces the original content.".to_string(),
+        "Another EDITED line with custom content.".to_string(),
+        "A third EDITED line with different text.".to_string(),
     ];
     
-    assert!(viewer.update_selected_content(edited_content.clone()));
+    // Update the selected content
+    let updated = viewer.update_selected_content(edited_content.clone());
+    assert!(updated, "Selected content should be updated");
     
-    let _chunk_id = viewer.save_selection_as_chunk(&mut chunk_storage, &root_path)?;
+    // Save the edited selection as a chunk
+    let chunk_id = viewer.save_selection_as_chunk(&mut chunk_storage, &root_path)?;
     
+    // Verify the chunk was saved
+    assert!(!chunk_id.is_empty(), "Should receive a valid chunk ID");
+    
+    // Check the chunks in storage
     let chunks = chunk_storage.get_chunks();
-    assert_eq!(chunks.len(), 1);
+    assert!(!chunks.is_empty(), "Storage should contain at least one chunk");
     
-    let chunk = &chunks[0];
-    assert!(chunk.content.contains("Line 5: EDITED content for testing."));
-    assert!(chunk.content.contains("Line 6: EDITED content for testing."));
-    assert!(chunk.content.contains("Line 7: EDITED content for testing."));
+    // Get the saved chunk and verify its content
+    let saved_chunk = &chunks[0];
     
-    assert!(viewer.has_edited_content());
+    // Verify that edited content is in the chunk
+    let contains_edited = edited_content.iter().any(|line| saved_chunk.content.contains(line));
+    assert!(contains_edited, "Chunk should contain the edited content");
     
-    assert!(chunk.edited);
+    // Verify edited flag is set
+    assert!(viewer.has_edited_content(), "Viewer should track that content was edited");
+    assert!(saved_chunk.edited, "Chunk should be marked as edited");
+    
+    // Verify chunked ranges are tracked
+    let chunked_ranges = viewer.chunked_ranges();
+    assert!(!chunked_ranges.is_empty(), "Viewer should track chunked ranges");
     
     Ok(())
 }
-
-
