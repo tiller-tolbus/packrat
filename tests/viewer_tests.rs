@@ -4,22 +4,18 @@ use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;
 
-// Import the Viewer from the main crate
 use packrat::viewer::Viewer;
 
-// Helper function to create test files
 fn setup_test_files() -> Result<(tempfile::TempDir, PathBuf, PathBuf, PathBuf)> {
     let temp_dir = tempdir()?;
     let root_path = temp_dir.path().to_path_buf();
     
-    // Create a small text file
     let small_file_path = root_path.join("small_file.txt");
     let mut small_file = File::create(&small_file_path)?;
     writeln!(small_file, "Line 1: This is a small text file.")?;
     writeln!(small_file, "Line 2: It has only a few lines.")?;
     writeln!(small_file, "Line 3: Perfect for basic tests.")?;
     
-    // Create a file with varying line lengths
     let varied_file_path = root_path.join("varied_lines.txt");
     let mut varied_file = File::create(&varied_file_path)?;
     writeln!(varied_file, "Short line")?;
@@ -28,7 +24,6 @@ fn setup_test_files() -> Result<(tempfile::TempDir, PathBuf, PathBuf, PathBuf)> 
     writeln!(varied_file, "Another short line")?;
     writeln!(varied_file, "Yet another line with medium length content.")?;
     
-    // Create a "large" file (for test purposes, 100 lines is sufficient)
     let large_file_path = root_path.join("large_file.txt");
     let mut large_file = File::create(&large_file_path)?;
     for i in 1..=100 {
@@ -42,25 +37,19 @@ fn setup_test_files() -> Result<(tempfile::TempDir, PathBuf, PathBuf, PathBuf)> 
 fn test_viewer_open_file() -> Result<()> {
     let (_temp_dir, small_file_path, _, _) = setup_test_files()?;
     
-    // Create a new viewer
     let mut viewer = Viewer::new();
     
-    // Open the small file
     viewer.open_file(&small_file_path)?;
     
-    // Check that file was opened correctly
-    assert_eq!(viewer.file_path(), Some(small_file_path.as_path()), 
-        "Viewer should have the correct file path");
+    assert_eq!(viewer.file_path(), Some(small_file_path.as_path()));
     
-    // Check content
     let content = viewer.content();
-    assert_eq!(content.len(), 3, "Small file should have 3 lines");
-    assert!(content[0].contains("Line 1"), "First line should contain 'Line 1'");
-    assert!(content[1].contains("Line 2"), "Second line should contain 'Line 2'");
-    assert!(content[2].contains("Line 3"), "Third line should contain 'Line 3'");
+    assert_eq!(content.len(), 3);
+    assert!(content[0].contains("Line 1"));
+    assert!(content[1].contains("Line 2"));
+    assert!(content[2].contains("Line 3"));
     
-    // Check initial scroll position
-    assert_eq!(viewer.scroll_position(), 0, "Initial scroll position should be 0");
+    assert_eq!(viewer.scroll_position(), 0);
     
     Ok(())
 }
@@ -69,44 +58,34 @@ fn test_viewer_open_file() -> Result<()> {
 fn test_viewer_scrolling() -> Result<()> {
     let (_temp_dir, _, _, large_file_path) = setup_test_files()?;
     
-    // Create a new viewer
     let mut viewer = Viewer::new();
     
-    // Open the large file
     viewer.open_file(&large_file_path)?;
     
-    // Check initial scroll position
-    assert_eq!(viewer.scroll_position(), 0, "Initial scroll position should be 0");
+    assert_eq!(viewer.scroll_position(), 0);
     
-    // Test scrolling down
     viewer.scroll_down();
-    assert_eq!(viewer.scroll_position(), 1, "Scroll position should be 1 after scrolling down");
+    assert_eq!(viewer.scroll_position(), 1);
     
-    // Test scrolling down multiple times
     for _ in 0..5 {
         viewer.scroll_down();
     }
-    assert_eq!(viewer.scroll_position(), 6, "Scroll position should be 6 after scrolling down 5 more times");
+    assert_eq!(viewer.scroll_position(), 6);
     
-    // Test scrolling up
     viewer.scroll_up();
-    assert_eq!(viewer.scroll_position(), 5, "Scroll position should be 5 after scrolling up");
+    assert_eq!(viewer.scroll_position(), 5);
     
-    // Test page down (assuming page size of 10)
     viewer.scroll_page_down(10);
-    assert_eq!(viewer.scroll_position(), 15, "Scroll position should be 15 after page down");
+    assert_eq!(viewer.scroll_position(), 15);
     
-    // Test page up
     viewer.scroll_page_up(10);
-    assert_eq!(viewer.scroll_position(), 5, "Scroll position should be 5 after page up");
+    assert_eq!(viewer.scroll_position(), 5);
     
-    // Test jump to bottom
     viewer.scroll_to_bottom();
-    assert_eq!(viewer.scroll_position(), 99, "Scroll position should be 99 (last line) after jumping to bottom");
+    assert_eq!(viewer.scroll_position(), 99);
     
-    // Test jump to top
     viewer.scroll_to_top();
-    assert_eq!(viewer.scroll_position(), 0, "Scroll position should be 0 after jumping to top");
+    assert_eq!(viewer.scroll_position(), 0);
     
     Ok(())
 }
@@ -115,32 +94,26 @@ fn test_viewer_scrolling() -> Result<()> {
 fn test_viewer_boundary_conditions() -> Result<()> {
     let (_temp_dir, small_file_path, _, _) = setup_test_files()?;
     
-    // Create a new viewer
     let mut viewer = Viewer::new();
     
-    // Open the small file (3 lines)
     viewer.open_file(&small_file_path)?;
     
-    // Test scrolling past the bottom
     for _ in 0..10 {
         viewer.scroll_down();
     }
-    assert_eq!(viewer.scroll_position(), 2, "Scroll position should not go beyond the last line (2)");
+    assert_eq!(viewer.scroll_position(), 2);
     
-    // Test scrolling past the top
     viewer.scroll_to_top();
     for _ in 0..10 {
         viewer.scroll_up();
     }
-    assert_eq!(viewer.scroll_position(), 0, "Scroll position should not go below 0");
+    assert_eq!(viewer.scroll_position(), 0);
     
-    // Test page down beyond end
     viewer.scroll_page_down(100);
-    assert_eq!(viewer.scroll_position(), 2, "Scroll position should not go beyond the last line");
+    assert_eq!(viewer.scroll_position(), 2);
     
-    // Test page up beyond beginning
     viewer.scroll_page_up(100);
-    assert_eq!(viewer.scroll_position(), 0, "Scroll position should not go below 0");
+    assert_eq!(viewer.scroll_position(), 0);
     
     Ok(())
 }
@@ -150,28 +123,21 @@ fn test_viewer_boundary_conditions() -> Result<()> {
 fn test_viewer_state_persistence() -> Result<()> {
     let (_temp_dir, _, _, large_file_path) = setup_test_files()?;
     
-    // Create a new viewer
     let mut viewer = Viewer::new();
     
-    // Open the large file
     viewer.open_file(&large_file_path)?;
     
-    // Scroll to position 50
     viewer.scroll_to_position(50);
-    assert_eq!(viewer.scroll_position(), 50, "Scroll position should be 50");
+    assert_eq!(viewer.scroll_position(), 50);
     
-    // Open another file
     let (_temp_dir2, small_file_path, _, _) = setup_test_files()?;
     viewer.open_file(&small_file_path)?;
     
-    // Scroll position should reset
-    assert_eq!(viewer.scroll_position(), 0, "Scroll position should reset to 0 for new file");
+    assert_eq!(viewer.scroll_position(), 0);
     
-    // Reopen the first file
     viewer.open_file(&large_file_path)?;
     
-    // Scroll position should also reset (this is expected behavior, we're not caching state)
-    assert_eq!(viewer.scroll_position(), 0, "Scroll position should reset to 0 when reopening a file");
+    assert_eq!(viewer.scroll_position(), 0);
     
     Ok(())
 }
