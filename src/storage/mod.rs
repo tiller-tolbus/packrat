@@ -187,6 +187,9 @@ impl ChunkStorage {
     }
     
     /// Calculate chunking percentage for a file
+    /// 
+    /// Note: Chunks have 1-indexed line numbers, but we need to convert
+    /// to 0-indexed when tracking which lines are chunked in our array.
     pub fn calculate_chunking_percentage<P: AsRef<Path>>(&self, file_path: P, total_lines: usize) -> f64 {
         if total_lines == 0 {
             return 0.0;
@@ -208,7 +211,11 @@ impl ChunkStorage {
         let mut chunked_lines = vec![false; total_lines];
         
         for chunk in file_chunks {
-            for i in chunk.start_line..=chunk.end_line.min(total_lines - 1) {
+            // Convert from 1-indexed (storage) to 0-indexed (for the boolean array)
+            let start_idx = chunk.start_line.saturating_sub(1);
+            let end_idx = chunk.end_line.saturating_sub(1).min(total_lines - 1);
+            
+            for i in start_idx..=end_idx {
                 chunked_lines[i] = true;
             }
         }

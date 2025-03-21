@@ -52,6 +52,24 @@ impl Viewer {
         }
     }
     
+    /// Convert a viewer's 0-indexed line number to a storage 1-indexed line number
+    /// 
+    /// The Viewer component uses 0-indexed line numbers internally (like most programming constructs),
+    /// while the storage system uses 1-indexed line numbers (matching typical editor display).
+    /// This helper ensures consistent conversion between the two systems.
+    fn to_storage_index(&self, viewer_index: usize) -> usize {
+        viewer_index + 1
+    }
+    
+    /// Convert a storage's 1-indexed line number to a viewer 0-indexed line number
+    /// 
+    /// The storage system uses 1-indexed line numbers (matching typical editor display),
+    /// while the Viewer component uses 0-indexed line numbers internally (like most programming constructs).
+    /// This helper ensures consistent conversion between the two systems.
+    fn to_viewer_index(&self, storage_index: usize) -> usize {
+        storage_index.saturating_sub(1)
+    }
+    
     /// Set the maximum tokens per chunk
     pub fn set_max_tokens_per_chunk(&mut self, max_tokens: usize) {
         self.max_tokens_per_chunk = max_tokens;
@@ -344,8 +362,8 @@ impl Viewer {
         // Create a new chunk (Chunk uses 1-indexed line numbers)
         let chunk = Chunk::new(
             relative_path,
-            range.0 + 1, // Convert from 0-indexed (Viewer) to 1-indexed (Chunk)
-            range.1 + 1, // Convert from 0-indexed (Viewer) to 1-indexed (Chunk)
+            self.to_storage_index(range.0), // Convert from 0-indexed (Viewer) to 1-indexed (Chunk)
+            self.to_storage_index(range.1), // Convert from 0-indexed (Viewer) to 1-indexed (Chunk)
             content,
             was_edited,
         );
@@ -417,7 +435,10 @@ impl Viewer {
         
         // Extract and add the ranges (converting from 1-indexed in storage to 0-indexed used internally)
         for chunk in file_chunks {
-            self.chunked_ranges.push((chunk.start_line - 1, chunk.end_line - 1));
+            self.chunked_ranges.push((
+                self.to_viewer_index(chunk.start_line),
+                self.to_viewer_index(chunk.end_line)
+            ));
         }
         
         Ok(())

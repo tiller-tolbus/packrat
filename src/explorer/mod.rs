@@ -55,6 +55,9 @@ impl Explorer {
     }
     
     /// Initialize chunking progress data from CSV storage
+    /// 
+    /// Note: Chunk storage uses 1-indexed line numbers, but we need to convert
+    /// to 0-indexed when tracking which lines are chunked in our internal arrays.
     pub fn init_chunking_progress(&mut self, chunk_storage: &ChunkStorage) -> Result<()> {
         // Get all chunks from storage
         let chunks = chunk_storage.get_chunks();
@@ -91,7 +94,11 @@ impl Explorer {
                     let mut chunked_lines = vec![false; total_lines];
                     
                     for &(start, end) in ranges {
-                        for i in start..=end.min(total_lines - 1) {
+                        // Convert from 1-indexed (storage) to 0-indexed (for the boolean array)
+                        let start_idx = start.saturating_sub(1);
+                        let end_idx = end.saturating_sub(1).min(total_lines - 1);
+                        
+                        for i in start_idx..=end_idx {
                             chunked_lines[i] = true;
                         }
                     }
@@ -100,8 +107,16 @@ impl Explorer {
                     let chunked_count = chunked_lines.iter().filter(|&&chunked| chunked).count();
                     let percentage = (chunked_count as f64 / total_lines as f64) * 100.0;
                     
-                    // Update the chunking progress
-                    self.update_chunking_progress(&file_path, percentage);
+                    // Construct absolute path for matching with file system entries
+                    let absolute_path = if file_path.is_absolute() {
+                        file_path.clone()
+                    } else {
+                        // Join with the root directory to get absolute path
+                        self.root_dir.join(&file_path)
+                    };
+                    
+                    // Update the chunking progress with absolute path for correct matching
+                    self.update_chunking_progress(&absolute_path, percentage);
                 }
             }
         }
@@ -268,11 +283,25 @@ impl Explorer {
     
     /// Update the chunking progress for a file
     pub fn update_chunking_progress(&mut self, file_path: &Path, progress: f64) {
+        // Store the progress in the cache
         self.chunking_progress.insert(file_path.to_path_buf(), progress);
+        
+        // Try to canonicalize paths for more reliable comparison
+        let canonicalized_path = match file_path.canonicalize() {
+            Ok(path) => path,
+            Err(_) => file_path.to_path_buf(),  // Use original if canonicalize fails
+        };
         
         // Update the entry if it's in the current view
         for entry in &mut self.entries {
-            if entry.path == file_path {
+            // Try to canonicalize the entry path too
+            let entry_path = match entry.path.canonicalize() {
+                Ok(path) => path,
+                Err(_) => entry.path.clone(),
+            };
+            
+            // Check both original and canonicalized paths
+            if entry.path == file_path || entry_path == canonicalized_path {
                 entry.chunking_progress = progress;
                 break;
             }
@@ -281,6 +310,26 @@ impl Explorer {
     
     /// Get the chunking progress for a file
     pub fn get_chunking_progress(&self, file_path: &Path) -> f64 {
-        *self.chunking_progress.get(file_path).unwrap_or(&0.0)
+        // Try direct match first
+        if let Some(progress) = self.chunking_progress.get(file_path) {
+            return *progress;
+        }
+        
+        // Try canonicalized path 
+        if let Ok(canonicalized) = file_path.canonicalize() {
+            if let Some(progress) = self.chunking_progress.get(&canonicalized) {
+                return *progress;
+            }
+        }
+        
+        // If file is in a subdirectory of root, check if it's stored as a relative path
+        if let Ok(relative) = file_path.strip_prefix(&self.root_dir) {
+            if let Some(progress) = self.chunking_progress.get(relative) {
+                return *progress;
+            }
+        }
+        
+        // No matching progress found
+        0.0
     }
 }
