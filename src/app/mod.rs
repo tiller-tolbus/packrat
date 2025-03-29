@@ -278,8 +278,8 @@ impl App {
 
         match event.code {
             
-            // Exit viewer and return to explorer (q, Esc, h, or left arrow)
-            KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('h') | KeyCode::Left => {
+            // Exit viewer and return to explorer
+            KeyCode::Char('q') | KeyCode::Esc => {
                 self.state.mode = AppMode::Explorer;
             },
             
